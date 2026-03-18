@@ -1,29 +1,21 @@
 # Gateway Design
 
-## Overview
+## 구성
 
-이 문서는 MSA 기반 에디터 서비스의 **API Gateway 전체 설계 구조**를 정의한다.
-
-현재 비즈니스 서비스는 다음 3개로 구성한다.
+### 다음 3개로 구성합니다.
 
 - Auth Service
 - User Service
 - Block Service
 
-추후 추가 요소
+### 추후 추가 요소
 - Permission Service
 
-참고로 **ELK는 Gateway의 라우팅 대상 비즈니스 서비스가 아니라 observability 인프라**로 취급한다.  
+**ELK는 Gateway의 라우팅 대상 비즈니스 서비스가 아니라 observability 인프라**입니다.
+
 즉 ELK는 Gateway 뒤의 업스트림 서비스가 아니라, Gateway 및 각 서비스의 로그/메트릭/트레이스를 수집하는 sink이다.
 
-현재 인증 구조는 다음 특성을 가진다.
-
-- SSO 기반 중앙 인증
-- GitHub OAuth2 로그인
-- Session + JWT Hybrid 구조
-- API Gateway를 외부 단일 진입점으로 사용
-
-Gateway는 단순 프록시가 아니라 다음 역할을 수행하는 **Edge Gateway**이다.
+ **Edge Gateway**
 
 - 외부 단일 진입점
 - 라우팅

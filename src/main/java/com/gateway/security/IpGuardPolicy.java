@@ -22,6 +22,10 @@ public final class IpGuardPolicy {
      */
     public IpGuardPolicy(boolean enabled, List<String> rules, boolean defaultAllow) {
         this.enabled = enabled;
+        if (!enabled) {
+            this.engine = null;
+            return;
+        }
         RuleSource source = () -> String.join("\n", rules);
         this.engine = new IpGuardEngine(source, defaultAllow);
     }
