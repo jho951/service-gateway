@@ -1,6 +1,7 @@
 package com.gateway;
 
 import com.gateway.config.GatewayConfig;
+import com.gateway.config.RuntimeEnvironment;
 import com.gateway.server.GatewayServer;
 
 /**
@@ -21,7 +22,13 @@ public final class GatewayApplication {
      * @throws Exception 설정 파싱 실패 또는 서버 시작 실패 시 발생합니다
      */
     public static void main(String[] args) throws Exception {
-        GatewayConfig config = GatewayConfig.fromEnv(System.getenv());
+        RuntimeEnvironment.ResolvedEnvironment runtimeEnvironment = RuntimeEnvironment.load(args);
+        GatewayConfig config = GatewayConfig.fromEnv(runtimeEnvironment.variables());
+        System.out.printf(
+                "Starting gateway with profile '%s' using %s%n",
+                runtimeEnvironment.profile(),
+                runtimeEnvironment.envFile()
+        );
         GatewayServer server = new GatewayServer(config);
         server.start();
     }

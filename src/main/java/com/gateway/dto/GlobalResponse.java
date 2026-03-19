@@ -35,7 +35,7 @@ public final class GlobalResponse<T> {
     }
 
     public static GlobalResponse<Void> ok() {
-        return ok(SuccessCode.SUCCESS, null);
+        return ok(SuccessCode.GET_SUCCESS, null);
     }
 
     public static GlobalResponse<Void> fail(ErrorCode errorCode) {

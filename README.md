@@ -1,8 +1,16 @@
 # Api-gateway-server
 
-내부 서비스를 외부 단일 진입점으로 연결하는 정책형 API Gateway 서버입니다.
+내부 서비스를 외부 단일 진입점으로 연결하는 API Gateway 서버입니다.
 
-## 설치 및 실행
+
+## 세부 문서
+
+1. [빠른 시작](https://github.com/jho951/Api-gateway-server/wiki/)
+
+7. [API 요약](https://github.com/jho951/Api-gateway-server/wiki/API)
+8. [프록시 규칙](/Users/jhons/Downloads/BE/Api-gateway-server/docs/Proxy-Rules.md)
+
+## 빠른 시작
 
 ### 요구 사항
 
@@ -11,43 +19,24 @@
 
 ### 로컬 실행
 
-필수 환경 변수를 설정합니다.
-
 ```bash
-export AUTH_SERVICE_URL=http://localhost:8081
-export USER_SERVICE_URL=http://localhost:8082
-export BLOCK_SERVICE_URL=http://localhost:8083
-export GATEWAY_PORT=8080
-```
-
-애플리케이션을 실행합니다.
-
-```bash
-./gradlew run
+bash scripts/run.local.sh dev
 ```
 
 ### Docker 실행
 
-`docker` 디렉토리 기준으로 실행합니다.
-
 ```bash
-bash docker/run.sh
+bash scripts/run.docker.sh dev
 ```
 
 기본 포트는 `http://localhost:8080` 입니다.
 
-## 핵심 기능
+## 현재 구조
 
-- `/auth`, `/users`, `/blocks` 등 경로 기반 업스트림 라우팅
-- Auth Service 기반 세션 인증 위임
-- 외부 신뢰 헤더 제거 후 내부 trusted header 재주입
-- CORS, 보안 헤더, 요청 ID, rate limit 같은 공통 정책 처리
-- Block Service를 포함한 downstream 서비스 프록시 처리
-
-## 상세 문서
-
-- [API 문서](/Users/jhons/Downloads/BE/Api-gateway-server/docs/API.md)
-- [설계 문서](/Users/jhons/Downloads/BE/Api-gateway-server/docs/Design.md)
-- [인증/권한 전략](/Users/jhons/Downloads/BE/Api-gateway-server/docs/Authz-Strategy.md)
-- [오류 코드](/Users/jhons/Downloads/BE/Api-gateway-server/docs/Error-Codes.md)
-- [확장 가이드](/Users/jhons/Downloads/BE/Api-gateway-server/docs/Expansion.md)
+- Gateway는 외부 요청의 단일 진입점입니다.
+- 외부 사용자가 보는 흐름은 `public`, `protected`, `admin` 세 가지입니다.
+- `/auth`, `/users`, `/blocks` 같은 경로를 각 내부 서비스로 전달합니다.
+- 보호 경로에서는 Auth Service로 세션을 검증합니다.
+- 관리 경로에서는 필요하면 Redis 캐시와 Permission Service를 통해 권한을 추가 확인합니다.
+- `internal` 경로는 사용자 기능 API가 아니라 Gateway와 내부 서비스 사이의 계약입니다.
+- `dev`와 `prod` 설정은 `env/dev.env`, `env/prod.env`로 분리되어 있습니다.

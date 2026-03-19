@@ -17,7 +17,6 @@ public final class GatewayApiPaths {
 
     /** 사용자 및 데이터 서비스 */
     public static final String USERS_ME = "/users/me";
-    public static final String DOCUMENTS_ALL = "/documents/**";
     public static final String BLOCKS_ALL = "/blocks/**";
     public static final String PERMISSIONS_ALL = "/permissions/**";
 

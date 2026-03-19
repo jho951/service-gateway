@@ -25,7 +25,6 @@ public final class GatewayConfig {
     private final URI authValidateUri;
     private final URI userServiceUri;
     private final URI blockServiceUri;
-    private final URI documentServiceUri;
     private final URI permissionServiceUri;
     private final URI adminPermissionVerifyUri;
     private final List<String> allowedOrigins;
@@ -52,7 +51,6 @@ public final class GatewayConfig {
             URI authValidateUri,
             URI userServiceUri,
             URI blockServiceUri,
-            URI documentServiceUri,
             URI permissionServiceUri,
             URI adminPermissionVerifyUri,
             List<String> allowedOrigins,
@@ -78,7 +76,6 @@ public final class GatewayConfig {
         this.authValidateUri = authValidateUri;
         this.userServiceUri = userServiceUri;
         this.blockServiceUri = blockServiceUri;
-        this.documentServiceUri = documentServiceUri;
         this.permissionServiceUri = permissionServiceUri;
         this.adminPermissionVerifyUri = adminPermissionVerifyUri;
         this.allowedOrigins = allowedOrigins;
@@ -125,7 +122,6 @@ public final class GatewayConfig {
         URI userServiceUri = requiredUri(env.get("USER_SERVICE_URL"), "USER_SERVICE_URL");
         URI blockServiceUri = requiredUri(env.get("BLOCK_SERVICE_URL"), "BLOCK_SERVICE_URL");
         URI permissionServiceUri = optionalUri(env.get("PERMISSION_SERVICE_URL"));
-        URI documentServiceUri = optionalUri(env.get("DOCUMENT_SERVICE_URL"));
 
         URI authValidateUri = optionalUri(env.get("AUTH_VALIDATE_URL"));
         if (authValidateUri == null) {
@@ -150,7 +146,7 @@ public final class GatewayConfig {
                 parseBoolean(env.get("GATEWAY_ADMIN_IP_GUARD_DEFAULT_ALLOW"), false)
         );
 
-        List<RouteDefinition> routes = buildRoutes(authServiceUri, userServiceUri, blockServiceUri, documentServiceUri, permissionServiceUri);
+        List<RouteDefinition> routes = buildRoutes(authServiceUri, userServiceUri, blockServiceUri, permissionServiceUri);
 
         return new GatewayConfig(
                 new InetSocketAddress(host, port),
@@ -161,7 +157,6 @@ public final class GatewayConfig {
                 authValidateUri,
                 userServiceUri,
                 blockServiceUri,
-                documentServiceUri,
                 permissionServiceUri,
                 adminPermissionVerifyUri,
                 allowedOrigins,
@@ -185,7 +180,6 @@ public final class GatewayConfig {
             URI authServiceUri,
             URI userServiceUri,
             URI blockServiceUri,
-            URI documentServiceUri,
             URI permissionServiceUri
     ) {
         List<RouteDefinition> routes = new ArrayList<>();
@@ -201,9 +195,6 @@ public final class GatewayConfig {
         if (permissionServiceUri != null) {
             routes.add(new RouteDefinition(GatewayApiPaths.ADMIN_PERMISSIONS_ALL, RouteType.ADMIN, "permission", permissionServiceUri));
             routes.add(new RouteDefinition(GatewayApiPaths.PERMISSIONS_ALL, RouteType.PROTECTED, "permission", permissionServiceUri));
-        }
-        if (documentServiceUri != null) {
-            routes.add(new RouteDefinition(GatewayApiPaths.DOCUMENTS_ALL, RouteType.PROTECTED, "document", documentServiceUri));
         }
         routes.sort(RouteDefinition.MOST_SPECIFIC_FIRST);
         return List.copyOf(routes);
@@ -276,10 +267,6 @@ public final class GatewayConfig {
 
     public URI blockServiceUri() {
         return blockServiceUri;
-    }
-
-    public URI documentServiceUri() {
-        return documentServiceUri;
     }
 
     public URI permissionServiceUri() {

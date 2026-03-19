@@ -99,7 +99,7 @@ public final class GatewayHandler implements HttpHandler {
 
             String path = normalizePath(adapter.uri().getPath());
             if (isHealthPath(path)) {
-                adapter.sendJson(200, Jsons.toJson(GlobalResponse.ok(SuccessCode.SUCCESS, Map.of("status", "UP"))));
+                adapter.sendJson(200, Jsons.toJson(GlobalResponse.ok(SuccessCode.GET_SUCCESS, Map.of("status", "UP"))));
                 return;
             }
 

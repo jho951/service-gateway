@@ -5,9 +5,7 @@ import com.gateway.api.InternalServiceApi;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 내부 Auth 서비스의 세션 검증 결과입니다.
- */
+/** 내부 Auth 서비스의 세션 검증 결과입니다. */
 public final class AuthResult {
     private final int statusCode;
     private final boolean authenticated;
