@@ -121,7 +121,7 @@ public final class GatewayHandler implements HttpHandler {
                 }
             }
 
-            if (requiresGatewayManagedAuth(match.route())) {
+            if (requiresGatewayManagedAuth(match.route(), path)) {
                 String authorizationHeader = exchange.getRequestHeaders().getFirst("Authorization");
                 AuthResult authResult = authServiceClient.validateSession(
                         config.authServiceUri(),
@@ -242,14 +242,21 @@ public final class GatewayHandler implements HttpHandler {
     }
 
     private boolean requiresAuthorizationPrecheck(com.gateway.routing.RouteDefinition route, String path) {
-        return requiresGatewayManagedAuth(route)
+        return requiresGatewayManagedAuth(route, path)
                 || GatewayApiPaths.USERS_ME.equals(path)
                 || GatewayApiPaths.INTERNAL_USERS_ALL.substring(0, GatewayApiPaths.INTERNAL_USERS_ALL.length() - 3).equals(path)
                 || path.startsWith("/internal/users/");
     }
 
-    private boolean requiresGatewayManagedAuth(com.gateway.routing.RouteDefinition route) {
-        return route.routeType() == RouteType.PROTECTED && "block".equals(route.upstreamName());
+    private boolean requiresGatewayManagedAuth(com.gateway.routing.RouteDefinition route, String path) {
+        if (route.routeType() == RouteType.PROTECTED && "block".equals(route.upstreamName())) {
+            return true;
+        }
+        if (GatewayApiPaths.USERS_ME.equals(path)) {
+            return true;
+        }
+        return GatewayApiPaths.INTERNAL_USERS_ALL.substring(0, GatewayApiPaths.INTERNAL_USERS_ALL.length() - 3).equals(path)
+                || path.startsWith("/internal/users/");
     }
 
     private Map<String, List<String>> sanitizeInboundHeaders(HttpExchange exchange, com.gateway.routing.RouteDefinition route) {
