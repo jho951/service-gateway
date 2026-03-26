@@ -5,7 +5,6 @@ WORKDIR /workspace
 COPY gradle gradle
 COPY gradlew gradlew
 COPY build.gradle settings.gradle gradle.properties ./
-COPY .env.local .env.prod ./
 COPY src src
 
 RUN chmod +x gradlew
@@ -16,8 +15,7 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 COPY --from=builder /workspace/build/install/Api-gateway-server /app/
-COPY --from=builder /workspace/.env.local /app/.env.local
-COPY --from=builder /workspace/.env.prod /app/.env.prod
+RUN touch /app/.env.local /app/.env.prod
 
 EXPOSE 8080
 
