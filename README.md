@@ -2,6 +2,11 @@
 
 내부 서비스를 외부 단일 진입점으로 연결하는 API Gateway 서버입니다.
 
+## Contract Source
+
+- 공통 계약 레포: `https://github.com/jho951/contract`
+- 이 서비스의 코드 SoT: `Api-gateway-server` `main`
+- 인터페이스 변경 시 본 저장소 구현보다 계약 레포 변경을 먼저 반영합니다.
 
 ### 현재 구조
 
