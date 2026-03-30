@@ -14,7 +14,7 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_ENV_FILE: /app/.env.${APP_ENV:-local}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
-      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-server:8082}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       BLOCK_SERVICE_URL: ${BLOCK_SERVICE_URL:-http://documents-service:8083}
       PERMISSION_SERVICE_URL: ${PERMISSION_SERVICE_URL:-http://permission-service:8084}
       PERMISSION_ADMIN_VERIFY_URL: ${PERMISSION_ADMIN_VERIFY_URL:-http://permission-service:8084/permissions/internal/admin/verify}
