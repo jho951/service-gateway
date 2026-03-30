@@ -16,6 +16,6 @@ if [[ $# -gt 0 ]]; then
 fi
 
 cd "$ROOT_DIR"
-SHARED_NETWORK="${MSA_SHARED_NETWORK:-msa-shared}"
+SHARED_NETWORK="${SHARED_SERVICE_NETWORK:-${BACKEND_SHARED_NETWORK:-${MSA_SHARED_NETWORK:-service-backbone-shared}}}"
 docker network inspect "$SHARED_NETWORK" >/dev/null 2>&1 || docker network create "$SHARED_NETWORK" >/dev/null
-APP_ENV="$PROFILE" MSA_SHARED_NETWORK="$SHARED_NETWORK" docker compose -f docker/docker-compose.yml up --build "$@"
+APP_ENV="$PROFILE" SHARED_SERVICE_NETWORK="$SHARED_NETWORK" BACKEND_SHARED_NETWORK="$SHARED_NETWORK" MSA_SHARED_NETWORK="$SHARED_NETWORK" docker compose -f docker/docker-compose.yml up --build "$@"
