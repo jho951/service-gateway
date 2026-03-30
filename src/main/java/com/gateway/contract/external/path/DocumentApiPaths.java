@@ -4,8 +4,7 @@ package com.gateway.contract.external.path;
 public final class DocumentApiPaths {
     private DocumentApiPaths() {}
 
-    /** 워크스페이스/문서 일반 경로 */
-    public static final String WORKSPACES_ALL = "/v1/workspaces/**";
+    /** 문서 일반 경로 */
     public static final String DOCUMENTS_ALL = "/v1/documents/**";
 
     /** 관리자/운영용 외부 경로 */

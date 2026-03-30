@@ -12,11 +12,11 @@
 
 - Gateway는 외부 요청의 단일 진입점입니다.
 - 외부 사용자가 보는 흐름은 `public`, `protected` 두 가지가 중심입니다.
-- `/v1/auth`, `/v1/users`, `/v1/internal/users`, `/v1/workspaces`, `/v1/documents`, `/v1/admin` 같은 경로를 각 내부 서비스로 전달합니다.
+- `/v1/auth`, `/v1/users`, `/v1/internal/users`, `/v1/documents`, `/v1/admin` 같은 경로를 각 내부 서비스로 전달합니다.
 - 보호 경로에서는 `Authorization` 헤더의 JWT를 gateway가 공유 비밀 키 또는 auth-service 공개키로 서명/만료만 검증하고, 성공 시 JWT의 사용자 claim을 바탕으로 `X-User-Id`를 내부 서비스에 주입합니다. 실제 로그인/권한/세션 상태와 리프레시 토큰 관리는 auth-service가 Redis 기반으로 단독 관리합니다.
 - 현재 구현은 JWT 포맷 선검증 후 gateway 내부에서 서명/유효기간만 확인하고, auth-service에 대한 별도 세션 검증 호출 없이 downstream에 전달합니다.
 - 권한 검증은 아직 게이트웨이에서 강제되지 않습니다.
-- auth-service 관련 `/v1/auth/**`, `/v1/oauth2/**`, `/v1/login/oauth2/**` 경로는 rewrite 없이 그대로 프록시합니다.
+- auth-service 관련 `/v1/auth/**`, `/v1/oauth2/**`, `/v1/login/oauth2/**` 경로는 내부 전달 전에 `/v1` prefix를 제거해서 프록시합니다.
 - auth-service 관련 `Set-Cookie`, `Cookie`, `Location`, `302`, `204` 응답은 그대로 통과시킵니다.
 - 리프레시 토큰은 gateway가 저장하거나 Redis에 접근하지 않고, `/v1/auth/refresh` 요청은 그대로 auth-service로 프록시되어 갱신/저장을 auth-service만 수행합니다.
 - credentials 기반 브라우저 호출을 위해 CORS는 명시 origin + `Access-Control-Allow-Credentials: true` 기준으로 동작합니다.
@@ -226,7 +226,7 @@ curl -i http://localhost:8082
 4. 로그인 시작 경로 확인
 
 ```bash
-curl -i http://localhost:8080/v1/auth/login/github
+curl -i "http://localhost:8080/v1/auth/sso/start?page=editor&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback"
 ```
 
 여기서 `502`가 나오면 Gateway에서 업스트림 연결이 실패한 것입니다.
@@ -235,12 +235,12 @@ curl -i http://localhost:8080/v1/auth/login/github
 5. 보호 API 호출 확인
 
 ```bash
-curl -i http://localhost:8080/v1/workspaces \
+curl -i http://localhost:8080/v1/documents \
   -H "Authorization: Bearer <access-token>"
 ```
 
-문서 API는 외부에서 `/v1/workspaces/**`, `/v1/documents/**`, `/v1/admin/**`로 받고 block service에도 동일 경로로 전달합니다.
-예를 들어 `GET /v1/documents/123` 요청은 block service의 `GET /v1/documents/123`로 전달됩니다.
+문서 API는 외부에서 `/v1/documents/**`, `/v1/admin/**`로 받고 block service에는 `/v1`을 제거한 내부 경로(`/documents/**`, `/admin/**`)로 전달합니다.
+예를 들어 `GET /v1/documents/123` 요청은 block service의 `GET /documents/123`로 전달됩니다.
 외부에서 들어온 `X-User-Id`는 신뢰하지 않고 제거하며, 게이트웨이가 auth-service 검증 결과로 내부 `X-User-Id`를 다시 주입합니다.
 기본 설정에서는 downstream 서비스로 `Authorization` 헤더를 전달하지 않습니다.
 보호 경로에서는 아래 순서로 인증을 처리합니다.
@@ -248,10 +248,10 @@ curl -i http://localhost:8080/v1/workspaces \
 - `Authorization: Bearer <token>` 형식 확인
 - 세그먼트 개수, base64url 문자셋, 비어 있는 payload 같은 명백한 비정상 JWT 차단
 - 선택적 payload `exp` 만료 체크
-- auth-service `/auth/internal/session/validate` 호출
-- auth-service가 반환한 `X-User-Id`를 내부 헤더로 주입
+- 설정값이 활성화된 경우 JWT 서명/클레임(`iss`, `aud`, `exp`) 검증
+- 검증된 토큰 claim으로 `X-User-Id` 내부 헤더 재주입
 
-토큰의 실제 신뢰 판단과 사용자 상태 확인은 auth-service 검증 결과에 의존합니다.
+토큰 신뢰 판단은 gateway의 JWT 검증 설정에 의존합니다.
 
 ## Documents Gateway Contract
 
@@ -263,26 +263,26 @@ block server는 게이트웨이가 맞춰야 하는 대상이며, 이 계약은 
 - 클라이언트는 Gateway만 호출합니다.
 - 클라이언트는 `Authorization: Bearer <access-token>`만 전송합니다.
 - 클라이언트가 보낸 `X-User-Id`는 무시되고 upstream 전달 전에 제거됩니다.
-- 문서 API 외부 prefix는 `/v1/workspaces/**`, `/v1/documents/**`, `/v1/admin/**` 입니다.
+- 문서 API 외부 prefix는 `/v1/documents/**`, `/v1/admin/**` 입니다.
 
 예:
 
 ```http
-POST /v1/workspaces/{workspaceId}/documents
+POST /v1/documents
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
 ### 내부 전달 계약
 
-- Gateway는 문서 요청을 `/v1/**` 경로로 block server에 그대로 전달합니다.
+- Gateway는 문서 요청 전달 시 외부 `/v1` prefix를 제거해 block server 내부 경로(`/documents/**`, `/admin/**`)로 전달합니다.
 - Gateway는 내부 `X-User-Id`를 재주입합니다.
 - 기본 설정에서는 `Authorization` 헤더를 downstream 으로 전달하지 않습니다.
 
 예:
 
 ```http
-POST /v1/workspaces/{workspaceId}/documents
+POST /documents
 X-User-Id: 12345
 X-Request-Id: <trace-id>
 Content-Type: application/json
@@ -292,11 +292,9 @@ Content-Type: application/json
 
 현재 documents/block server로 전달하는 외부 경로는 아래와 같습니다.
 
-- `POST /v1/workspaces`
-- `GET /v1/workspaces/{workspaceId}`
-- `GET /v1/workspaces/{workspaceId}/documents`
-- `GET /v1/workspaces/{workspaceId}/trash/documents`
-- `POST /v1/workspaces/{workspaceId}/documents`
+- `GET /v1/documents`
+- `GET /v1/documents/trash`
+- `POST /v1/documents`
 - `GET /v1/documents/{documentId}`
 - `GET /v1/documents/{documentId}/blocks`
 - `PATCH /v1/documents/{documentId}`
@@ -311,20 +309,18 @@ Content-Type: application/json
 - `DELETE /v1/admin/blocks/{blockId}`
 - `POST /v1/admin/blocks/{blockId}/move`
 
-Gateway가 실제로 downstream 에 전달할 때는 모두 `/v1/**` 경로로 rewrite 됩니다.
+Gateway가 실제로 downstream 에 전달할 때는 외부 `/v1` prefix를 제거해 전달합니다.
 
 예:
 
-- `GET /v1/workspaces/{workspaceId}` -> `GET /v1/workspaces/{workspaceId}`
-- `GET /v1/workspaces/{workspaceId}/documents` -> `GET /v1/workspaces/{workspaceId}/documents`
-- `POST /v1/workspaces/{workspaceId}/documents` -> `POST /v1/workspaces/{workspaceId}/documents`
-- `GET /v1/documents/{documentId}` -> `GET /v1/documents/{documentId}`
-- `PATCH /v1/documents/{documentId}` -> `PATCH /v1/documents/{documentId}`
-- `DELETE /v1/documents/{documentId}` -> `DELETE /v1/documents/{documentId}`
-- `POST /v1/documents/{documentId}/restore` -> `POST /v1/documents/{documentId}/restore`
-- `GET /v1/documents/{documentId}/blocks` -> `GET /v1/documents/{documentId}/blocks`
-- `PATCH /v1/admin/blocks/{blockId}` -> `PATCH /v1/admin/blocks/{blockId}`
-- `DELETE /v1/admin/blocks/{blockId}` -> `DELETE /v1/admin/blocks/{blockId}`
+- `GET /v1/documents` -> `GET /documents`
+- `GET /v1/documents/{documentId}` -> `GET /documents/{documentId}`
+- `PATCH /v1/documents/{documentId}` -> `PATCH /documents/{documentId}`
+- `DELETE /v1/documents/{documentId}` -> `DELETE /documents/{documentId}`
+- `POST /v1/documents/{documentId}/restore` -> `POST /documents/{documentId}/restore`
+- `GET /v1/documents/{documentId}/blocks` -> `GET /documents/{documentId}/blocks`
+- `PATCH /v1/admin/blocks/{blockId}` -> `PATCH /admin/blocks/{blockId}`
+- `DELETE /v1/admin/blocks/{blockId}` -> `DELETE /admin/blocks/{blockId}`
 
 ### 응답 계약
 
@@ -338,8 +334,8 @@ Gateway가 실제로 downstream 에 전달할 때는 모두 `/v1/**` 경로로 r
 현재 gateway 구현:
 
 - Gateway는 `Authorization` 형식과 payload 를 먼저 선검사합니다.
-- Gateway는 auth-service `/auth/internal/session/validate` 결과가 성공일 때만 downstream 으로 전달합니다.
-- Gateway는 auth-service가 반환한 `X-User-Id`를 내부 헤더로 주입합니다.
+- Gateway는 설정값이 활성화된 경우 JWT 서명/클레임(`iss`, `aud`, `exp`) 검증이 성공한 요청만 downstream 으로 전달합니다.
+- Gateway는 검증된 토큰 claim 기반으로 내부 `X-User-Id`를 주입합니다.
 - Gateway는 기본값으로 downstream `Authorization` 헤더를 제거합니다.
 - Gateway는 documents service 권한 검증을 대신하지 않습니다.
 - documents/block server는 workspace/document/block 단위 권한을 자체 판단해야 합니다.

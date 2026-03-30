@@ -359,7 +359,6 @@ public final class GatewayHandler implements HttpHandler {
 
     private boolean isLoginPath(String path) {
         return AuthApiPaths.LOGIN.equals(path)
-                || AuthApiPaths.LOGIN_GITHUB.equals(path)
                 || AuthApiPaths.SSO_START.equals(path)
                 || path.startsWith("/v1/auth/oauth2/authorize/")
                 || path.startsWith("/v1/oauth2/authorization/");

@@ -1,3 +1,5 @@
+name: api-gateway
+
 services:
   gateway:
     build:
@@ -12,11 +14,11 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_ENV_FILE: /app/.env.${APP_ENV:-local}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
-      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-server:8082}
       BLOCK_SERVICE_URL: ${BLOCK_SERVICE_URL:-http://documents-service:8083}
       PERMISSION_SERVICE_URL: ${PERMISSION_SERVICE_URL:-http://permission-service:8084}
       PERMISSION_ADMIN_VERIFY_URL: ${PERMISSION_ADMIN_VERIFY_URL:-http://permission-service:8084/permissions/internal/admin/verify}
-      REDIS_HOST: ${REDIS_HOST:-redis-server}
+      REDIS_HOST: ${REDIS_HOST:-central-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_TIMEOUT_MS: ${REDIS_TIMEOUT_MS:-1000}
       GATEWAY_SESSION_CACHE_ENABLED: ${GATEWAY_SESSION_CACHE_ENABLED:-true}
@@ -24,103 +26,9 @@ services:
       GATEWAY_SESSION_CACHE_TTL_SECONDS: ${GATEWAY_SESSION_CACHE_TTL_SECONDS:-60}
       GATEWAY_SESSION_CACHE_KEY_PREFIX: ${GATEWAY_SESSION_CACHE_KEY_PREFIX:-gateway:session:}
     networks:
-      - service-backbone-shared
-
-  auth-service:
-    profiles: ["local-stack"]
-    image: ${AUTH_SERVICE_IMAGE:-auth-service:latest}
-    networks:
-      - service-backbone-shared
-      - auth-private
-
-  auth-db:
-    profiles: ["local-stack"]
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: auth
-      POSTGRES_USER: auth
-      POSTGRES_PASSWORD: auth
-    volumes:
-      - auth-db-data:/var/lib/postgresql/data
-    networks:
-      - auth-private
-
-  user-service:
-    profiles: ["local-stack"]
-    image: ${USER_SERVICE_IMAGE:-user-service:latest}
-    networks:
-      - service-backbone-shared
-      - user-private
-
-  user-db:
-    profiles: ["local-stack"]
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: user
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
-    volumes:
-      - user-db-data:/var/lib/postgresql/data
-    networks:
-      - user-private
-
-  documents-service:
-    profiles: ["local-stack"]
-    image: ${DOCUMENTS_SERVICE_IMAGE:-documents-service:latest}
-    networks:
-      - service-backbone-shared
-      - documents-private
-
-  documents-db:
-    profiles: ["local-stack"]
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: documents
-      POSTGRES_USER: documents
-      POSTGRES_PASSWORD: documents
-    volumes:
-      - documents-db-data:/var/lib/postgresql/data
-    networks:
-      - documents-private
-
-  permission-service:
-    profiles: ["local-stack"]
-    image: ${PERMISSION_SERVICE_IMAGE:-permission-service:latest}
-    networks:
-      - service-backbone-shared
-      - permission-private
-
-  permission-db:
-    profiles: ["local-stack"]
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: permission
-      POSTGRES_USER: permission
-      POSTGRES_PASSWORD: permission
-    volumes:
-      - permission-db-data:/var/lib/postgresql/data
-    networks:
-      - permission-private
+      - msa-shared
 
 networks:
-  service-backbone-shared:
+  msa-shared:
     external: true
-    name: ${SHARED_SERVICE_NETWORK:-service-backbone-shared}
-  auth-private:
-    driver: bridge
-    internal: true
-  user-private:
-    driver: bridge
-    internal: true
-  documents-private:
-    driver: bridge
-    internal: true
-  permission-private:
-    driver: bridge
-    internal: true
-
-volumes:
-  auth-db-data:
-  user-db-data:
-  documents-db-data:
-  permission-db-data:
+    name: ${MSA_SHARED_NETWORK:-msa-shared}

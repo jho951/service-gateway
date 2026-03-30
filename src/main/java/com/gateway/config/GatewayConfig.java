@@ -332,9 +332,7 @@ public final class GatewayConfig {
         List<RouteDefinition> routes = new ArrayList<>();
         routes.add(new RouteDefinition(AuthApiPaths.INTERNAL_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.LOGIN, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(AuthApiPaths.LOGIN_GITHUB, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.OAUTH2_AUTHORIZE_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(AuthApiPaths.OAUTH_GITHUB_CALLBACK, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.SSO_START, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.EXCHANGE, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.REFRESH, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
@@ -342,17 +340,15 @@ public final class GatewayConfig {
         routes.add(new RouteDefinition(AuthApiPaths.OAUTH2_AUTHORIZATION_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.LOGIN_OAUTH2_CALLBACK_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.JWKS, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(AuthApiPaths.SESSION, RouteType.PROTECTED, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.ME, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.ERROR, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
 
         routes.add(new RouteDefinition(InternalApiPaths.INTERNAL_ALL, RouteType.INTERNAL, "internal", authServiceUri, AuthApiPaths.API_PREFIX));
 
         routes.add(new RouteDefinition(UserApiPaths.SIGNUP, RouteType.PUBLIC, "user", userServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(UserApiPaths.ME, RouteType.PUBLIC, "user", userServiceUri, AuthApiPaths.API_PREFIX));
+        routes.add(new RouteDefinition(UserApiPaths.ME, RouteType.PROTECTED, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.INTERNAL_FIND_OR_CREATE_AND_LINK_SOCIAL, RouteType.INTERNAL, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.INTERNAL_USERS_ALL, RouteType.INTERNAL, "user", userServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(DocumentApiPaths.WORKSPACES_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(DocumentApiPaths.DOCUMENTS_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(DocumentApiPaths.ADMIN_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
 //        if (permissionServiceUri != null) {
