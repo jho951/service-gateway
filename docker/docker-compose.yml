@@ -31,4 +31,4 @@ services:
 networks:
   msa-shared:
     external: true
-    name: ${MSA_SHARED_NETWORK:-msa-service-shared}
+    name: ${MSA_SHARED_NETWORK:-service-backbone-shared}
