@@ -13,8 +13,9 @@
 - Gateway는 외부 요청의 단일 진입점입니다.
 - 외부 사용자가 보는 흐름은 `public`, `protected` 두 가지가 중심입니다.
 - `/v1/auth`, `/v1/users`, `/v1/internal/users`, `/v1/documents`, `/v1/admin` 같은 경로를 각 내부 서비스로 전달합니다.
-- 보호 경로에서는 `Authorization` 헤더의 JWT를 gateway가 공유 비밀 키 또는 auth-service 공개키로 서명/만료만 검증하고, 성공 시 JWT의 사용자 claim을 바탕으로 `X-User-Id`를 내부 서비스에 주입합니다. 실제 로그인/권한/세션 상태와 리프레시 토큰 관리는 auth-service가 Redis 기반으로 단독 관리합니다.
-- 현재 구현은 JWT 포맷 선검증 후 gateway 내부에서 서명/유효기간만 확인하고, auth-service에 대한 별도 세션 검증 호출 없이 downstream에 전달합니다.
+- 브라우저 기반 클라이언트는 `credentials: 'include'` 와 쿠키만으로 동작하는 흐름을 우선합니다. `auth-service`가 내려주는 `sso_session`, `ACCESS_TOKEN`, `refresh_token` 쿠키를 브라우저가 보관하고, 이후 `/v1/auth/me`, 로그아웃, 보호 API는 이 쿠키를 기준으로 동작합니다.
+- 비브라우저 클라이언트나 운영 편의용 fallback으로는 `Authorization` 헤더도 허용합니다. gateway는 들어온 `Authorization` 이 있으면 우선 사용하고, 없으면 쿠키를 검사합니다.
+- 실제 로그인/권한/세션 상태와 리프레시 토큰 관리는 auth-service가 Redis 기반으로 단독 관리합니다.
 - 권한 검증은 아직 게이트웨이에서 강제되지 않습니다.
 - auth-service 관련 `/v1/auth/**`, `/v1/oauth2/**`, `/v1/login/oauth2/**` 경로는 내부 전달 전에 `/v1` prefix를 제거해서 프록시합니다.
 - auth-service 관련 `Set-Cookie`, `Cookie`, `Location`, `302`, `204` 응답은 그대로 통과시킵니다.
@@ -31,7 +32,7 @@
 
 ## JWT 검증
 
-- 보호 경로에서 들어오는 `Authorization: Bearer` JWT는 gateway가 공유 비밀 키(HS256/HS384/HS512) 또는 auth-service의 공개키(RS256/RS384/RS512)로 서명과 `iss`/`aud`/`exp` 클레임을 검증한 뒤에 `sub`/`userId` 같은 사용자 claim을 `X-User-Id`로 재구성하여 하위 서비스로 전달합니다. 로그인 · 권한 · 리프레시 상태는 Redis 기반의 auth-service가 단독으로 관리하며, gateway는 세션 상태를 직접 조회하지 않습니다.
+- 보호 경로에서 들어오는 `Authorization: Bearer` JWT는 gateway가 공유 비밀 키(HS256/HS384/HS512) 또는 auth-service의 공개키(RS256/RS384/RS512)로 서명과 `iss`/`aud`/`exp` 클레임을 검증한 뒤에 `sub`/`userId` 같은 사용자 claim을 `X-User-Id`로 재구성하여 하위 서비스로 전달합니다. 브라우저 흐름에서는 쿠키 기반이 우선이고, JWT 헤더는 비브라우저 fallback 입니다. 로그인 · 권한 · 리프레시 상태는 Redis 기반의 auth-service가 단독으로 관리하며, gateway는 세션 상태를 직접 조회하지 않습니다.
 
 ### 환경 변수
 
@@ -260,8 +261,8 @@ block server는 게이트웨이가 맞춰야 하는 대상이며, 이 계약은 
 
 ### 외부 계약
 
-- 클라이언트는 Gateway만 호출합니다.
-- 클라이언트는 `Authorization: Bearer <access-token>`만 전송합니다.
+- 브라우저 클라이언트는 Gateway만 호출하고, 인증은 `credentials: 'include'` 로 전달되는 쿠키를 우선 사용합니다.
+- 비브라우저 클라이언트는 필요 시 `Authorization: Bearer <access-token>` 을 사용할 수 있습니다.
 - 클라이언트가 보낸 `X-User-Id`는 무시되고 upstream 전달 전에 제거됩니다.
 - 문서 API 외부 prefix는 `/v1/documents/**`, `/v1/admin/**` 입니다.
 
@@ -277,7 +278,7 @@ Content-Type: application/json
 
 - Gateway는 문서 요청 전달 시 외부 `/v1` prefix를 제거해 block server 내부 경로(`/documents/**`, `/admin/**`)로 전달합니다.
 - Gateway는 내부 `X-User-Id`를 재주입합니다.
-- 기본 설정에서는 `Authorization` 헤더를 downstream 으로 전달하지 않습니다.
+- 브라우저 기반 쿠키 흐름에서는 `Authorization` 이 없어도 되고, `auth-service`가 발급한 쿠키만으로 인증이 진행됩니다.
 
 예:
 

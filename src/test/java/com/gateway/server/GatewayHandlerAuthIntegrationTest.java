@@ -45,7 +45,7 @@ class GatewayHandlerAuthIntegrationTest {
     void documentsWithoutBearerAndCookieReturnsUnauthorized() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
-        startUpstreams(validateCalls, "user-123", blockCalls, null, null);
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, null);
         startGateway();
 
         HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-1", null, null);
@@ -65,7 +65,7 @@ class GatewayHandlerAuthIntegrationTest {
             authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
             userIdHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
             writeJson(exchange, 200, "{\"ok\":true}");
-        }, null);
+        }, null, null);
         startGateway();
 
         String validShapeToken = "Bearer " + jwt("{\"sub\":\"user-123\",\"exp\":4102444800}");
@@ -88,7 +88,7 @@ class GatewayHandlerAuthIntegrationTest {
         startUpstreams(validateCalls, "user-456", blockCalls, exchange -> {
             authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
             writeJson(exchange, 200, "{\"ok\":true}");
-        }, null);
+        }, null, null);
         startGateway();
 
         HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-2", null, "ACCESS_TOKEN=" + jwt("{\"sub\":\"user-456\",\"exp\":4102444800}") + "; Path=/; HttpOnly");
@@ -101,10 +101,57 @@ class GatewayHandlerAuthIntegrationTest {
     }
 
     @Test
+    void documentsWithSsoSessionCookieValidatesAndForwardsInternalJwt() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicReference<String> authHeaderSeenByBlock = new AtomicReference<>();
+        AtomicReference<String> cookieSeenByValidate = new AtomicReference<>();
+        startUpstreams(validateCalls, "user-789", blockCalls, exchange -> {
+            authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            writeJson(exchange, 200, "{\"ok\":true}");
+        }, exchange -> {
+            cookieSeenByValidate.set(exchange.getRequestHeaders().getFirst("Cookie"));
+            writeJson(exchange, 200, "{\"authenticated\":true,\"userId\":\"user-789\"}");
+        }, null);
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-3", null, "sso_session=session-789; Path=/; HttpOnly");
+
+        assertEquals(200, response.statusCode());
+        assertEquals(1, validateCalls.get());
+        assertEquals(1, blockCalls.get());
+        assertNotNull(authHeaderSeenByBlock.get());
+        assertTrue(authHeaderSeenByBlock.get().startsWith("Bearer "));
+        assertNotNull(cookieSeenByValidate.get());
+        assertTrue(cookieSeenByValidate.get().contains("sso_session=session-789"));
+    }
+
+    @Test
+    void authMeForwardsCookieToAuthService() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicReference<String> cookieSeenByAuthMe = new AtomicReference<>();
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, exchange -> {
+            cookieSeenByAuthMe.set(exchange.getRequestHeaders().getFirst("Cookie"));
+            writeJson(exchange, 200, "{\"userId\":\"user-123\",\"email\":\"user@example.com\",\"name\":\"User\",\"avatarUrl\":\"\",\"roles\":[\"USER\"]}");
+        });
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayRequest("/v1/auth/me", null, "sso_session=session-123; ACCESS_TOKEN=access-123");
+
+        assertEquals(200, response.statusCode());
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, blockCalls.get());
+        assertNotNull(cookieSeenByAuthMe.get());
+        assertTrue(cookieSeenByAuthMe.get().contains("sso_session=session-123"));
+        assertTrue(cookieSeenByAuthMe.get().contains("ACCESS_TOKEN=access-123"));
+    }
+
+    @Test
     void internalPathWithoutInternalSecretReturnsForbidden() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
-        startUpstreams(validateCalls, "user-123", blockCalls, null, null);
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, null);
         startGateway();
 
         HttpResponse<String> response = sendGatewayRequest("/v1/internal/ping", null, null);
@@ -116,7 +163,7 @@ class GatewayHandlerAuthIntegrationTest {
     void internalPathWithInternalSecretForwards() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
-        startUpstreams(validateCalls, "user-123", blockCalls, null, null);
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, null);
         startGateway();
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -136,7 +183,8 @@ class GatewayHandlerAuthIntegrationTest {
             String validatedUserId,
             AtomicInteger blockCalls,
             HttpHandler blockHandler,
-            HttpHandler authValidateHandler
+            HttpHandler authValidateHandler,
+            HttpHandler authMeHandler
     ) throws IOException {
         authServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         authServer.createContext("/auth/internal/session/validate", exchange -> {
@@ -149,6 +197,17 @@ class GatewayHandlerAuthIntegrationTest {
                 return;
             }
             writeJson(exchange, 200, "{\"authenticated\":true,\"userId\":\"" + validatedUserId + "\"}");
+        });
+        authServer.createContext("/auth/me", exchange -> {
+            if (authMeHandler != null) {
+                authMeHandler.handle(exchange);
+                return;
+            }
+            if (validatedUserId == null) {
+                writeJson(exchange, 401, "{\"userId\":null}");
+                return;
+            }
+            writeJson(exchange, 200, "{\"userId\":\"" + validatedUserId + "\"}");
         });
         authServer.createContext("/internal/ping", exchange -> writeJson(exchange, 200, "{\"ok\":true}"));
         authServer.start();
