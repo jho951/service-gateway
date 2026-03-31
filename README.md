@@ -41,7 +41,7 @@
 - `AUTH_JWT_SHARED_SECRET`: HS256/HS384/HS512 같은 HS 계열 알고리즘을 검증할 때 사용하는 대칭 키입니다. `AUTH_JWT_ALGORITHM`이 HS 계열일 경우 필수입니다.
 - `AUTH_JWT_KEY_ID`: JWT 헤더의 `kid`와 비교해 특정 키만 허용하도록 합니다([선택 사항](https://www.rfc-editor.org/rfc/rfc7515)).
 - `AUTH_JWT_ALGORITHM`: 기대하는 JWT `alg` 값(RS256, RS384, RS512, HS256, HS384, HS512 중 하나). 기본값은 `RS256`입니다.
-- `AUTH_JWT_ISSUER`: `iss` 클레임이 반드시 이 값과 일치해야 인증을 성공으로 판단합니다([선택 사항]).
+- `AUTH_JWT_ISSUER`: `iss` 클레임이 반드시 이 값과 일치해야 인증을 성공으로 판단합니다([선택 사항]). 현재 로컬/배포 기준 값은 `auth-service` 입니다.
 - `AUTH_JWT_AUDIENCE`: `aud` 클레임에 이 값을 반드시 포함시켜야 합니다([선택 사항], 문자열 또는 배열 모두 지원).
 - `AUTH_JWT_CLOCK_SKEW_SECONDS`: `exp` 비교 시 허용할 최대 시계 차 입니다. 기본값은 `30`.
 - `GATEWAY_OAUTH_DEBUG_LOG_ENABLED`: `true`로 설정하면 `/v1/auth/sso/start`, `/v1/oauth2/**`, `/v1/login/oauth2/**`, `/v1/auth/exchange` 요청/응답에 대해 `oauth_trace` 로그를 INFO 레벨로 출력합니다(쿠키/코드 값은 출력하지 않고 존재 여부만 출력).
