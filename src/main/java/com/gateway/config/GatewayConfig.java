@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** API Gateway 런타임 설정의 불변 표현입니다. */
+/** API Gateway 라우트 설정 */
 public final class GatewayConfig {
     private final InetSocketAddress bindAddress;
     private final Duration requestTimeout;
@@ -71,6 +71,61 @@ public final class GatewayConfig {
     private final int internalJwtTtlSeconds;
     private final String internalRequestSecret;
 
+    /**
+     * 생성자
+     * @param bindAddress 게이트웨이가 바인딩할 호스트와 포트
+     * @param requestTimeout 외부 요청과 업스트림 호출에 공통 적용할 타임아웃
+     * @param authServiceUri auth-service 기본 URI
+     * @param userServiceUri user-service 기본 URI
+     * @param blockServiceUri block-service 기본 URI
+     * @param permissionServiceUri permission-service 기본 URI
+     * @param adminPermissionVerifyUri 관리자 권한 검증용 내부 호출 URI
+     * @param allowedOrigins CORS 허용 Origin 목록
+     * @param ipPolicy 일반 외부 IP 허용 정책
+     * @param internalIpPolicy 내부 서비스 호출 IP 허용 정책
+     * @param adminIpPolicy 관리자 경로에 적용할 IP 허용 정책
+     * @param loginRateLimitPerMinute 로그인 요청 rate limit
+     * @param maxBodyBytes 허용하는 최대 요청 본문 크기(bytes)
+     * @param jwtPrecheckExpEnabled JWT exp 사전 점검 활성화 여부
+     * @param jwtPrecheckExpClockSkewSeconds JWT exp 사전 점검 허용 오차(초)
+     * @param jwtPrecheckMaxTokenLength JWT 사전 점검 시 허용할 최대 토큰 길이
+     * @param gatewayUserIdClaimNames userId 추출에 사용할 JWT claim 이름 목록
+     * @param forwardAuthorizationHeader upstream으로 Authorization 헤더를 전달할지 여부
+     * @param advancedRoutePoliciesEnabled 세분화된 라우트/인증 정책 활성화 여부
+     * @param adminPermissionCheckEnabled 관리자 권한 추가 검증 활성화 여부
+     * @param permissionCacheEnabled 관리자 권한 검증 결과 캐시 활성화 여부
+     * @param redisHost Redis 호스트
+     * @param redisPort Redis 포트
+     * @param redisPassword Redis 비밀번호
+     * @param redisTimeoutMs Redis 연결/응답 타임아웃(ms)
+     * @param permissionCacheTtlSeconds 관리자 권한 캐시 TTL(초)
+     * @param permissionCacheKeyPrefix 관리자 권한 캐시 키 prefix
+     * @param sessionCacheEnabled 세션 캐시 활성화 여부
+     * @param sessionLocalCacheTtlSeconds 로컬 메모리 세션 캐시 TTL(초)
+     * @param sessionCacheTtlSeconds 분산 세션 캐시 TTL(초)
+     * @param sessionCacheKeyPrefix 세션 캐시 키 prefix
+     * @param oauthDebugLogEnabled OAuth 관련 디버그 로그 활성화 여부
+     * @param auditLogEnabled 감사 로그 활성화 여부
+     * @param auditLogPath 감사 로그 파일 경로
+     * @param auditLogServiceName 감사 로그에 기록할 서비스 이름
+     * @param auditLogEnv 감사 로그에 기록할 실행 환경 이름
+     * @param auditLogAsyncEnabled 감사 로그 비동기 기록 활성화 여부
+     * @param auditLogAsyncThreads 감사 로그 비동기 처리 스레드 수
+     * @param internalJwtSharedSecret Gateway 내부 JWT 서명용 shared secret
+     * @param internalJwtIssuer Gateway 내부 JWT issuer
+     * @param internalJwtAudience Gateway 내부 JWT audience
+     * @param internalJwtTtlSeconds Gateway 내부 JWT 만료 시간(초)
+     * @param internalRequestSecret INTERNAL 라우트 접근 시 요구되는 호출 주체 비밀값
+     * @param routes Gateway 라우팅 정의 목록
+     * @param authJwtVerifyEnabled auth-service 토큰 서명 검증 활성화 여부
+     * @param authJwtPublicKeyPem RSA 계열 JWT 검증용 공개키 PEM
+     * @param authJwtSharedSecret HS 계열 JWT 검증용 shared secret
+     * @param authJwtKeyId JWT 헤더 kid 필터링용 키 ID
+     * @param authJwtAlgorithm 기대하는 JWT 서명 알고리즘
+     * @param authJwtIssuer 기대하는 JWT issuer
+     * @param authJwtAudience 기대하는 JWT audience
+     * @param authJwtClockSkewSeconds JWT exp 검증 시 허용할 clock skew(초)
+     */
     private GatewayConfig(
             InetSocketAddress bindAddress,
             Duration requestTimeout,
@@ -180,8 +235,7 @@ public final class GatewayConfig {
     }
 
     /**
-     * 환경 변수 맵으로부터 게이트웨이 설정을 생성합니다.
-     *
+     * GatewayConfig 생성자에 넣는 팩토리 메서드
      * @param env 시스템 환경 변수 맵
      * @return 검증이 끝난 불변 설정 객체
      */
@@ -231,19 +285,13 @@ public final class GatewayConfig {
         int authJwtClockSkewSeconds = parseInt(env.get("AUTH_JWT_CLOCK_SKEW_SECONDS"), 30, "AUTH_JWT_CLOCK_SKEW_SECONDS");
 
         String internalJwtSharedSecret = nullIfBlank(env.get("GATEWAY_INTERNAL_JWT_SHARED_SECRET"));
-        if (internalJwtSharedSecret == null) {
-            internalJwtSharedSecret = authJwtSharedSecret;
-        }
-        if (internalJwtSharedSecret == null) {
-            internalJwtSharedSecret = "dev-internal-jwt-secret";
-        }
+        if (internalJwtSharedSecret == null) internalJwtSharedSecret = authJwtSharedSecret;
+        if (internalJwtSharedSecret == null) internalJwtSharedSecret = "dev-internal-jwt-secret";
         String internalJwtIssuer = env.getOrDefault("GATEWAY_INTERNAL_JWT_ISSUER", "api-gateway");
         String internalJwtAudience = env.getOrDefault("GATEWAY_INTERNAL_JWT_AUDIENCE", "internal-services");
         int internalJwtTtlSeconds = parseInt(env.get("GATEWAY_INTERNAL_JWT_TTL_SECONDS"), 300, "GATEWAY_INTERNAL_JWT_TTL_SECONDS");
         String internalRequestSecret = nullIfBlank(env.get("GATEWAY_INTERNAL_REQUEST_SECRET"));
-        if (internalRequestSecret == null) {
-            internalRequestSecret = internalJwtSharedSecret;
-        }
+        if (internalRequestSecret == null) internalRequestSecret = internalJwtSharedSecret;
 
         URI authServiceUri = requiredUri(env.get("AUTH_SERVICE_URL"), "AUTH_SERVICE_URL");
         URI userServiceUri = requiredUri(env.get("USER_SERVICE_URL"), "USER_SERVICE_URL");
@@ -348,9 +396,7 @@ public final class GatewayConfig {
         routes.add(new RouteDefinition(AuthApiPaths.JWKS, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.ME, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.ERROR, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-
         routes.add(new RouteDefinition(InternalApiPaths.INTERNAL_ALL, RouteType.INTERNAL, "internal", authServiceUri, AuthApiPaths.API_PREFIX));
-
         routes.add(new RouteDefinition(UserApiPaths.SIGNUP, RouteType.PUBLIC, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.ME, RouteType.PROTECTED, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.INTERNAL_FIND_OR_CREATE_AND_LINK_SOCIAL, RouteType.INTERNAL, "user", userServiceUri, AuthApiPaths.API_PREFIX));
@@ -364,29 +410,25 @@ public final class GatewayConfig {
         return List.copyOf(routes);
     }
 
-    private static URI requiredUri(String rawValue, String key) {
-        URI uri = optionalUri(rawValue);
-        if (uri == null) {
-            throw new IllegalArgumentException(key + " must be configured");
-        }
+    private static URI optionalUri(String rawValue) {
+        if (rawValue == null) return null;
+        if ( rawValue.isBlank()) return null;
+        URI uri = URI.create(rawValue.trim());
+        if (uri.getScheme() == null) throw new IllegalArgumentException("Service URL Scheme must be absolute: " + rawValue);
+        if(uri.getHost() == null) throw new IllegalArgumentException("Service URL Host must be absolute: " + rawValue);
         return uri;
     }
 
-    private static URI optionalUri(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
-        }
-        URI uri = URI.create(rawValue.trim());
-        if (uri.getScheme() == null || uri.getHost() == null) {
-            throw new IllegalArgumentException("Service URL must be absolute: " + rawValue);
-        }
+    private static URI requiredUri(String rawValue, String key) {
+        URI uri = optionalUri(rawValue);
+        if (uri == null) throw new IllegalArgumentException(key + " must be configured");
         return uri;
     }
 
     private static int parseInt(String rawValue, int defaultValue, String key) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return defaultValue;
-        }
+        if (rawValue == null) return defaultValue;
+        if (rawValue.isBlank()) return defaultValue;
+
         try {
             return Integer.parseInt(rawValue.trim());
         } catch (NumberFormatException ex) {
@@ -395,224 +437,103 @@ public final class GatewayConfig {
     }
 
     private static boolean parseBoolean(String rawValue, boolean defaultValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return defaultValue;
-        }
+        if (rawValue == null) return defaultValue;
+        if (rawValue.isBlank()) return defaultValue;
         return Boolean.parseBoolean(rawValue.trim());
     }
 
     private static String nullIfBlank(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
-        }
+        if (rawValue == null) return null;
+        if (rawValue.isBlank()) return null;
         return rawValue;
     }
 
     public InetSocketAddress bindAddress() {
         return bindAddress;
     }
-
     public Duration requestTimeout() {
         return requestTimeout;
     }
-
     public URI authServiceUri() {
         return authServiceUri;
     }
-
     public URI userServiceUri() {
         return userServiceUri;
     }
-
     public URI blockServiceUri() {
         return blockServiceUri;
     }
-
     public URI permissionServiceUri() {
         return permissionServiceUri;
     }
-
     public URI adminPermissionVerifyUri() {
         return adminPermissionVerifyUri;
     }
-
     public List<String> allowedOrigins() {
         return allowedOrigins;
     }
-
     public IpGuardPolicy ipPolicy() {
         return ipPolicy;
     }
-
     public IpGuardPolicy internalIpPolicy() {
         return internalIpPolicy;
     }
-
     public IpGuardPolicy adminIpPolicy() {
         return adminIpPolicy;
     }
-
     public int loginRateLimitPerMinute() {
         return loginRateLimitPerMinute;
     }
-
     public int maxBodyBytes() {
         return maxBodyBytes;
     }
-
     public boolean jwtPrecheckExpEnabled() {
         return jwtPrecheckExpEnabled;
     }
-
     public int jwtPrecheckExpClockSkewSeconds() {
         return jwtPrecheckExpClockSkewSeconds;
     }
-
     public int jwtPrecheckMaxTokenLength() {
         return jwtPrecheckMaxTokenLength;
     }
-
     public List<String> gatewayUserIdClaimNames() {
         return gatewayUserIdClaimNames;
     }
-
     public boolean forwardAuthorizationHeader() {
         return forwardAuthorizationHeader;
     }
-
-    public boolean permissionCacheEnabled() {
-        return permissionCacheEnabled;
-    }
-
-    public boolean adminPermissionCheckEnabled() {
-        return adminPermissionCheckEnabled;
-    }
-
-    public boolean advancedRoutePoliciesEnabled() {
-        return advancedRoutePoliciesEnabled;
-    }
-
-    public String redisHost() {
-        return redisHost;
-    }
-
-    public int redisPort() {
-        return redisPort;
-    }
-
-    public String redisPassword() {
-        return redisPassword;
-    }
-
-    public int redisTimeoutMs() {
-        return redisTimeoutMs;
-    }
-
-    public int permissionCacheTtlSeconds() {
-        return permissionCacheTtlSeconds;
-    }
-
-    public String permissionCacheKeyPrefix() {
-        return permissionCacheKeyPrefix;
-    }
-
-    public boolean sessionCacheEnabled() {
-        return sessionCacheEnabled;
-    }
-
-    public int sessionLocalCacheTtlSeconds() {
-        return sessionLocalCacheTtlSeconds;
-    }
-
-    public int sessionCacheTtlSeconds() {
-        return sessionCacheTtlSeconds;
-    }
-
-    public String sessionCacheKeyPrefix() {
-        return sessionCacheKeyPrefix;
-    }
-
-    public boolean oauthDebugLogEnabled() {
-        return oauthDebugLogEnabled;
-    }
-
-    public boolean auditLogEnabled() {
-        return auditLogEnabled;
-    }
-
-    public String auditLogPath() {
-        return auditLogPath;
-    }
-
-    public String auditLogServiceName() {
-        return auditLogServiceName;
-    }
-
-    public String auditLogEnv() {
-        return auditLogEnv;
-    }
-
-    public boolean auditLogAsyncEnabled() {
-        return auditLogAsyncEnabled;
-    }
-
-    public int auditLogAsyncThreads() {
-        return auditLogAsyncThreads;
-    }
-
-    public String internalJwtSharedSecret() {
-        return internalJwtSharedSecret;
-    }
-
-    public String internalJwtIssuer() {
-        return internalJwtIssuer;
-    }
-
-    public String internalJwtAudience() {
-        return internalJwtAudience;
-    }
-
-    public int internalJwtTtlSeconds() {
-        return internalJwtTtlSeconds;
-    }
-
-    public String internalRequestSecret() {
-        return internalRequestSecret;
-    }
-
-    public boolean authJwtVerifyEnabled() {
-        return authJwtVerifyEnabled;
-    }
-
-    public String authJwtPublicKeyPem() {
-        return authJwtPublicKeyPem;
-    }
-
-    public String authJwtSharedSecret() {
-        return authJwtSharedSecret;
-    }
-
-    public String authJwtKeyId() {
-        return authJwtKeyId;
-    }
-
-    public String authJwtAlgorithm() {
-        return authJwtAlgorithm;
-    }
-
-    public String authJwtIssuer() {
-        return authJwtIssuer;
-    }
-
-    public String authJwtAudience() {
-        return authJwtAudience;
-    }
-
-    public long authJwtClockSkewSeconds() {
-        return authJwtClockSkewSeconds;
-    }
-
-    public List<RouteDefinition> routes() {
-        return routes;
-    }
+    public boolean permissionCacheEnabled() {return permissionCacheEnabled;}
+    public boolean adminPermissionCheckEnabled() {return adminPermissionCheckEnabled;}
+    public boolean advancedRoutePoliciesEnabled() {return advancedRoutePoliciesEnabled;}
+    public String redisHost() {return redisHost;}
+    public int redisPort() {return redisPort;}
+    public String redisPassword() {return redisPassword;}
+    public int redisTimeoutMs() {return redisTimeoutMs;}
+    public int permissionCacheTtlSeconds() {return permissionCacheTtlSeconds;}
+    public String permissionCacheKeyPrefix() {return permissionCacheKeyPrefix;}
+    public boolean sessionCacheEnabled() {return sessionCacheEnabled;}
+    public int sessionLocalCacheTtlSeconds() {return sessionLocalCacheTtlSeconds;}
+    public int sessionCacheTtlSeconds() {return sessionCacheTtlSeconds;}
+    public String sessionCacheKeyPrefix() {return sessionCacheKeyPrefix;}
+    public boolean oauthDebugLogEnabled() {return oauthDebugLogEnabled;}
+    public boolean auditLogEnabled() {return auditLogEnabled;}
+    public String auditLogPath() {return auditLogPath;}
+    public String auditLogServiceName() {return auditLogServiceName;}
+    public String auditLogEnv() {return auditLogEnv;}
+    public boolean auditLogAsyncEnabled() {return auditLogAsyncEnabled;}
+    public int auditLogAsyncThreads() {return auditLogAsyncThreads;}
+    public String internalJwtSharedSecret() {return internalJwtSharedSecret;}
+    public String internalJwtIssuer() {return internalJwtIssuer;}
+    public String internalJwtAudience() {return internalJwtAudience;}
+    public int internalJwtTtlSeconds() {return internalJwtTtlSeconds;}
+    public String internalRequestSecret() {return internalRequestSecret;}
+    public boolean authJwtVerifyEnabled() {return authJwtVerifyEnabled;}
+    public String authJwtPublicKeyPem() {return authJwtPublicKeyPem;}
+    public String authJwtSharedSecret() {return authJwtSharedSecret;}
+    public String authJwtKeyId() {return authJwtKeyId;}
+    public String authJwtAlgorithm() {return authJwtAlgorithm;}
+    public String authJwtIssuer() {return authJwtIssuer;}
+    public String authJwtAudience() {return authJwtAudience;}
+    public long authJwtClockSkewSeconds() {return authJwtClockSkewSeconds;}
+    public List<RouteDefinition> routes() {return routes;}
 }

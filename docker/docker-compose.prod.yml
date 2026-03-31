@@ -1,18 +1,18 @@
-name: api-gateway
+name: api-gateway-prod
 
 services:
   gateway:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    restart: unless-stopped
+    restart: always
     ports:
       - "8080:8080"
     env_file:
-      - ../.env.${APP_ENV:-local}
+      - ../.env.prod
     environment:
-      APP_ENV: ${APP_ENV:-local}
-      APP_ENV_FILE: /app/.env.${APP_ENV:-local}
+      APP_ENV: prod
+      APP_ENV_FILE: /app/.env.prod
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
       USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       BLOCK_SERVICE_URL: ${BLOCK_SERVICE_URL:-http://documents-service:8083}

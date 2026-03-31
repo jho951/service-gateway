@@ -15,7 +15,7 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 COPY --from=builder /workspace/build/install/Api-gateway-server /app/
-RUN touch /app/.env.local /app/.env.prod
+RUN touch /app/.env.dev /app/.env.prod
 
 EXPOSE 8080
 

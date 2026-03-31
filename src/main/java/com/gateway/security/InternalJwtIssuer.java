@@ -6,9 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 
-/**
- * 내부 서비스 전달용 HS256 JWT 발급기입니다.
- */
+/** 내부 서비스 전달용 HS256 JWT 발급기입니다. */
 public final class InternalJwtIssuer {
     private static final Base64.Encoder BASE64_URL = Base64.getUrlEncoder().withoutPadding();
 
@@ -18,9 +16,8 @@ public final class InternalJwtIssuer {
     private final long ttlSeconds;
 
     public InternalJwtIssuer(String sharedSecret, String issuer, String audience, long ttlSeconds) {
-        if (sharedSecret == null || sharedSecret.isBlank()) {
-            throw new IllegalArgumentException("GATEWAY_INTERNAL_JWT_SHARED_SECRET must be configured");
-        }
+        if (sharedSecret == null) throw new IllegalArgumentException("GATEWAY_INTERNAL_JWT_SHARED_SECRET must be configured");
+        if (sharedSecret.isBlank()) throw new IllegalArgumentException("GATEWAY_INTERNAL_JWT_SHARED_SECRET must be configured");
         this.secretBytes = sharedSecret.getBytes(StandardCharsets.UTF_8);
         this.issuer = issuer == null || issuer.isBlank() ? "api-gateway" : issuer;
         this.audience = audience == null || audience.isBlank() ? "internal-services" : audience;
@@ -28,9 +25,8 @@ public final class InternalJwtIssuer {
     }
 
     public String issueForUser(String userId, String status) {
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("userId must not be blank");
-        }
+        if (userId == null) throw new IllegalArgumentException("userId must not be blank");
+        if (userId.isBlank()) throw new IllegalArgumentException("userId must not be blank");
         long now = Instant.now().getEpochSecond();
         long exp = now + ttlSeconds;
         String normalizedStatus = status == null || status.isBlank() ? "A" : status;

@@ -34,7 +34,7 @@ public final class RuntimeEnvironment {
 
     private static String defaultEnvFile(String profile) {
         return switch (profile) {
-            case "local", "dev" -> ".env.local";
+            case "local", "dev" -> ".env.dev";
             case "prod" -> ".env.prod";
             default -> ".env." + profile;
         };

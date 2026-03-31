@@ -71,7 +71,12 @@ class GatewayHandlerAuthIntegrationTest {
         startGateway();
 
         String validShapeToken = "Bearer " + jwt("{\"sub\":\"user-123\",\"exp\":4102444800}");
-        HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-1", validShapeToken, null);
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/documents/doc-1",
+                validShapeToken,
+                null,
+                Map.of("X-Client-Type", "api")
+        );
 
         assertEquals(200, response.statusCode());
         assertEquals(1, validateCalls.get());
@@ -97,7 +102,12 @@ class GatewayHandlerAuthIntegrationTest {
         }, null, null, null);
         startGateway();
 
-        HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-2", null, "ACCESS_TOKEN=" + jwt("{\"sub\":\"user-456\",\"exp\":4102444800}") + "; Path=/; HttpOnly");
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/documents/doc-2",
+                null,
+                "ACCESS_TOKEN=" + jwt("{\"sub\":\"user-456\",\"exp\":4102444800}") + "; Path=/; HttpOnly",
+                Map.of("Origin", "http://localhost:5173")
+        );
 
         assertEquals(200, response.statusCode());
         assertEquals(1, validateCalls.get());
@@ -124,7 +134,12 @@ class GatewayHandlerAuthIntegrationTest {
         }, null, null);
         startGateway();
 
-        HttpResponse<String> response = sendGatewayRequest("/v1/documents/doc-3", null, "sso_session=session-789; Path=/; HttpOnly");
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/documents/doc-3",
+                null,
+                "sso_session=session-789; Path=/; HttpOnly",
+                Map.of("Origin", "http://localhost:5173")
+        );
 
         assertEquals(200, response.statusCode());
         assertEquals(1, validateCalls.get());
@@ -134,6 +149,45 @@ class GatewayHandlerAuthIntegrationTest {
         assertNotNull(cookieSeenByValidate.get());
         assertTrue(cookieSeenByValidate.get().contains("sso_session=session-789"));
         assertEquals("A", userStatusHeaderSeenByBlock.get());
+    }
+
+    @Test
+    void documentsWithWebClientTypeAndBearerOnlyReturnsUnauthorized() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, null, null);
+        startGateway();
+
+        String validShapeToken = "Bearer " + jwt("{\"sub\":\"user-123\",\"exp\":4102444800}");
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/documents/doc-1",
+                validShapeToken,
+                null,
+                Map.of("X-Client-Type", "web", "Origin", "http://localhost:5173")
+        );
+
+        assertEquals(401, response.statusCode());
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, blockCalls.get());
+    }
+
+    @Test
+    void documentsWithApiClientTypeAndCookieOnlyReturnsUnauthorized() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, null, null);
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/documents/doc-1",
+                null,
+                "ACCESS_TOKEN=" + jwt("{\"sub\":\"user-123\",\"exp\":4102444800}") + "; Path=/; HttpOnly",
+                Map.of("X-Client-Type", "api")
+        );
+
+        assertEquals(401, response.statusCode());
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, blockCalls.get());
     }
 
     @Test
@@ -284,6 +338,10 @@ class GatewayHandlerAuthIntegrationTest {
     }
 
     private HttpResponse<String> sendGatewayRequest(String path, String authorizationHeader, String cookieHeader) throws Exception {
+        return sendGatewayRequest(path, authorizationHeader, cookieHeader, Map.of());
+    }
+
+    private HttpResponse<String> sendGatewayRequest(String path, String authorizationHeader, String cookieHeader, Map<String, String> extraHeaders) throws Exception {
         assertNotNull(gatewayServer);
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create("http://127.0.0.1:" + gatewayServer.getAddress().getPort() + path))
@@ -294,6 +352,9 @@ class GatewayHandlerAuthIntegrationTest {
         }
         if (cookieHeader != null) {
             requestBuilder.header("Cookie", cookieHeader);
+        }
+        for (Map.Entry<String, String> header : extraHeaders.entrySet()) {
+            requestBuilder.header(header.getKey(), header.getValue());
         }
         return HttpClient.newHttpClient().send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
     }

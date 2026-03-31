@@ -1,22 +1,40 @@
 package com.gateway.audit;
 
-import com.auditlog.api.AuditEvent;
-import com.auditlog.api.AuditEventType;
-import com.auditlog.api.AuditLogger;
-import com.auditlog.api.AuditActorType;
-import com.auditlog.api.AuditResult;
 import com.auditlog.api.AuditSink;
-import com.auditlog.core.DefaultAuditLogger;
+import com.auditlog.api.AuditEvent;
+import com.auditlog.api.AuditLogger;
+import com.auditlog.api.AuditResult;
+import com.auditlog.api.AuditEventType;
+import com.auditlog.api.AuditActorType;
 import com.auditlog.core.FileAuditSink;
+import com.auditlog.core.DefaultAuditLogger;
+
 import com.gateway.config.GatewayConfig;
 
-import java.nio.file.Path;
 import java.util.List;
+import java.nio.file.Path;
 
 /** Gateway 요청/오류 감사 이벤트를 audit-log 모듈로 기록합니다. */
 public final class GatewayAuditService {
     private final boolean enabled;
     private final AuditLogger logger;
+
+    private static AuditEventType resolveEventType(String method) {
+        if (method == null) {
+            return AuditEventType.CUSTOM;
+        }
+        return switch (method.toUpperCase()) {
+            case "GET", "HEAD" -> AuditEventType.READ;
+            case "POST" -> AuditEventType.CREATE;
+            case "PUT", "PATCH" -> AuditEventType.UPDATE;
+            case "DELETE" -> AuditEventType.DELETE;
+            default -> AuditEventType.CUSTOM;
+        };
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
 
     public GatewayAuditService(GatewayConfig config) {
         this.enabled = config.auditLogEnabled();
@@ -44,9 +62,7 @@ public final class GatewayAuditService {
             String authOutcome,
             String failureReason
     ) {
-        if (!enabled || logger == null) {
-            return;
-        }
+        if (!enabled || logger == null) return;
 
         String actorId = (userId == null || userId.isBlank()) ? "anonymous" : userId;
         AuditResult result = statusCode < 400 ? AuditResult.SUCCESS : AuditResult.FAILURE;
@@ -68,22 +84,5 @@ public final class GatewayAuditService {
                 .build();
 
         logger.log(event);
-    }
-
-    private static AuditEventType resolveEventType(String method) {
-        if (method == null) {
-            return AuditEventType.CUSTOM;
-        }
-        return switch (method.toUpperCase()) {
-            case "GET", "HEAD" -> AuditEventType.READ;
-            case "POST" -> AuditEventType.CREATE;
-            case "PUT", "PATCH" -> AuditEventType.UPDATE;
-            case "DELETE" -> AuditEventType.DELETE;
-            default -> AuditEventType.CUSTOM;
-        };
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value;
     }
 }

@@ -1,18 +1,64 @@
-# Contract Sync (Api-gateway-server)
+# CONTRACT_SYNC.md
 
-- Contract Source: https://github.com/jho951/contract
-- Service SoT Branch: `main`
-- Contract Role: Edge routing and header propagation owner
+## Repository
+- Repo: `https://github.com/jho951/Api-gateway-server`
+- Branch: `main`
+- Role: `backend-service`
 
-## Required Links
-- Routing: https://github.com/jho951/contract/blob/main/contracts/routing.md
-- Headers: https://github.com/jho951/contract/blob/main/contracts/headers.md
-- Security: https://github.com/jho951/contract/blob/main/contracts/security.md
-- Env: https://github.com/jho951/contract/blob/main/contracts/env.md
+## Contract Source
+- Contract Repo: `https://github.com/jho951/contract`
+- Contract Commit SHA: `<contract-sha>`
+- Latest Sync Date: `<YYYY-MM-DD>`
 
-## Sync Checklist
-- [ ] `/v1/**` route mapping matches contract
-- [ ] stripPrefix(`/v1`) behavior unchanged
-- [ ] INTERNAL guard (`X-Internal-Request-Secret`) enforced
-- [ ] Trace headers (`X-Request-Id`, `X-Correlation-Id`) propagated
-- [ ] 502/504 mapping follows contract
+## Referenced Docs
+- `README.md`
+- `contracts/gateway/README.md`
+- `contracts/gateway/responsibility.md`
+- `contracts/gateway/auth-proxy.md`
+- `contracts/gateway/auth.md`
+- `contracts/gateway/security.md`
+- `contracts/gateway/cache.md`
+- `contracts/gateway/response.md`
+- `contracts/gateway/env.md`
+- `contracts/gateway/errors.md`
+- `contracts/gateway/execution.md`
+- `contracts/routing.md`
+- `contracts/headers.md`
+- `contracts/security.md`
+- `contracts/auth-channel-policy.md`
+- `contracts/openapi/gateway-edge.v1.yaml`
+
+## Impact Scope
+- Contract Areas:
+    - `routing`
+    - `headers`
+    - `security`
+    - `auth`
+    - `cache`
+    - `response`
+    - `env`
+    - `errors`
+    - `openapi`
+- Affected Flows:
+    - `브라우저 인증`
+    - `비브라우저 인증`
+    - `Gateway 인증 프록시`
+    - `내부 헤더 재주입`
+    - `health/ready`
+    - `INTERNAL secret`
+    - `L1/L2 session cache`
+    - `Gateway passthrough response`
+
+## Validation
+- Commands:
+    - `git diff --check`
+    - `./gradlew test`
+    - `curl -i http://localhost:8080/v1/health`
+    - `curl -i http://localhost:8080/v1/ready`
+- Result:
+    - `<pass/fail summary>`
+
+## Sync Log
+| Date | Contract SHA | Areas | Notes |
+  |---|---|---|---|
+| `<YYYY-MM-DD>` | `<contract-sha>` | `<routing, headers, ...>` | `<short note>` |

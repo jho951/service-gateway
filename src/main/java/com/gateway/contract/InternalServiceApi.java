@@ -22,5 +22,7 @@ public final class InternalServiceApi {
 
         public static final String ORIGINAL_METHOD = ServiceHeaders.Forwarded.ORIGINAL_METHOD;
         public static final String ORIGINAL_PATH = ServiceHeaders.Forwarded.ORIGINAL_PATH;
+
+        public static final String CLIENT_TYPE = ServiceHeaders.Trusted.CLIENT_TYPE;
     }
 }
