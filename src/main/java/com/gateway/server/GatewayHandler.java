@@ -558,6 +558,9 @@ public final class GatewayHandler implements HttpHandler {
         }
         if (requestPath.startsWith("/v1/documents/")
                 || requestPath.equals("/v1/documents")
+                || requestPath.startsWith("/v1/workspaces/")
+                || requestPath.equals("/v1/workspaces")
+                || requestPath.startsWith("/v1/editor-operations/")
                 || requestPath.startsWith("/v1/admin/")
                 || requestPath.startsWith("/v1/users/me")) {
             return RequestChannel.WEB;

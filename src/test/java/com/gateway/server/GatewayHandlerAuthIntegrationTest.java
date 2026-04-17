@@ -90,6 +90,68 @@ class GatewayHandlerAuthIntegrationTest {
     }
 
     @Test
+    void editorOperationRouteRewritesV1PrefixAndForwardsToEditorServer() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicReference<String> blockMethod = new AtomicReference<>();
+        AtomicReference<String> blockPath = new AtomicReference<>();
+        AtomicReference<String> userIdHeaderSeenByBlock = new AtomicReference<>();
+        startUpstreams(validateCalls, "editor-user", blockCalls, exchange -> {
+            blockMethod.set(exchange.getRequestMethod());
+            blockPath.set(exchange.getRequestURI().getPath());
+            userIdHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
+            writeJson(exchange, 200, "{\"ok\":true}");
+        }, null, null, null);
+        startGateway();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://127.0.0.1:" + gatewayServer.getAddress().getPort()
+                        + "/v1/editor-operations/documents/00000000-0000-0000-0000-000000000001/save"))
+                .timeout(Duration.ofSeconds(3))
+                .header("Cookie", "sso_session=session-editor; Path=/; HttpOnly")
+                .header("Origin", "http://localhost:5173")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"batchId\":\"batch-1\",\"operations\":[]}"))
+                .build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(200, response.statusCode());
+        assertEquals(1, validateCalls.get());
+        assertEquals(1, blockCalls.get());
+        assertEquals("POST", blockMethod.get());
+        assertEquals("/editor-operations/documents/00000000-0000-0000-0000-000000000001/save", blockPath.get());
+        assertEquals("editor-user", userIdHeaderSeenByBlock.get());
+    }
+
+    @Test
+    void workspacesRouteRewritesV1PrefixAndForwardsToEditorServer() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicReference<String> blockPath = new AtomicReference<>();
+        AtomicReference<String> userIdHeaderSeenByBlock = new AtomicReference<>();
+        startUpstreams(validateCalls, "workspace-user", blockCalls, exchange -> {
+            blockPath.set(exchange.getRequestURI().getPath());
+            userIdHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
+            writeJson(exchange, 200, "{\"ok\":true}");
+        }, null, null, null);
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/workspaces/00000000-0000-0000-0000-000000000002",
+                null,
+                "sso_session=session-workspace; Path=/; HttpOnly",
+                Map.of("Origin", "http://localhost:5173")
+        );
+
+        assertEquals(200, response.statusCode());
+        assertEquals(1, validateCalls.get());
+        assertEquals(1, blockCalls.get());
+        assertEquals("/workspaces/00000000-0000-0000-0000-000000000002", blockPath.get());
+        assertEquals("workspace-user", userIdHeaderSeenByBlock.get());
+    }
+
+    @Test
     void documentsWithAccessTokenCookieValidatesAndForwardsInternalJwt() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
@@ -309,14 +371,17 @@ class GatewayHandlerAuthIntegrationTest {
         userServer.start();
 
         blockServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        blockServer.createContext("/documents", exchange -> {
+        HttpHandler blockEntry = exchange -> {
             blockCalls.incrementAndGet();
             if (blockHandler != null) {
                 blockHandler.handle(exchange);
                 return;
             }
             writeJson(exchange, 200, "{\"ok\":true}");
-        });
+        };
+        blockServer.createContext("/documents", blockEntry);
+        blockServer.createContext("/workspaces", blockEntry);
+        blockServer.createContext("/editor-operations", blockEntry);
         blockServer.start();
     }
 

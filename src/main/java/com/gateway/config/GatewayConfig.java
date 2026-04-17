@@ -402,6 +402,8 @@ public final class GatewayConfig {
         routes.add(new RouteDefinition(UserApiPaths.INTERNAL_FIND_OR_CREATE_AND_LINK_SOCIAL, RouteType.INTERNAL, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.INTERNAL_USERS_ALL, RouteType.INTERNAL, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(DocumentApiPaths.DOCUMENTS_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
+        routes.add(new RouteDefinition(DocumentApiPaths.WORKSPACES_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
+        routes.add(new RouteDefinition(DocumentApiPaths.EDITOR_OPERATIONS_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(DocumentApiPaths.ADMIN_ALL, RouteType.PROTECTED, "block", blockServiceUri, AuthApiPaths.API_PREFIX));
 //        if (permissionServiceUri != null) {
 //            routes.add(new RouteDefinition(PermissionApiPaths.ALL, RouteType.PROTECTED, "permission", permissionServiceUri));

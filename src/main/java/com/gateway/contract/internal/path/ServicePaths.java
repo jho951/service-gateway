@@ -25,6 +25,12 @@ public final class ServicePaths {
         /** 문서 리소스 루트 */
         public static final String DOCUMENTS = "/documents";
 
+        /** 워크스페이스 리소스 루트 */
+        public static final String WORKSPACES = "/workspaces";
+
+        /** 에디터 작업 리소스 루트 */
+        public static final String EDITOR_OPERATIONS = "/editor-operations";
+
         /** 관리자 리소스 루트 */
         public static final String ADMIN = "/admin";
     }
