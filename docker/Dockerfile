@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM gradle:8.14.3-jdk17 AS builder
 
 WORKDIR /workspace
@@ -8,7 +10,9 @@ COPY build.gradle settings.gradle gradle.properties ./
 COPY src src
 
 RUN chmod +x gradlew
-RUN ./gradlew --no-daemon clean installDist
+RUN --mount=type=secret,id=gh_token,required=false \
+    if [ -f /run/secrets/gh_token ]; then export GH_TOKEN="$(cat /run/secrets/gh_token)"; fi; \
+    ./gradlew --no-daemon clean installDist
 
 FROM eclipse-temurin:17-jre-jammy
 

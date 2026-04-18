@@ -17,6 +17,11 @@ jobs:
 
     permissions:
       contents: read
+      packages: read
+
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GITHUB_ACTOR: ${{ github.actor }}
 
     steps:
       - name: Checkout
@@ -39,4 +44,4 @@ jobs:
         run: ./gradlew --no-daemon installDist
 
       - name: Build Docker image
-        run: docker build -f docker/Dockerfile -t api-gateway:ci .
+        run: DOCKER_BUILDKIT=1 docker build --secret id=gh_token,env=GH_TOKEN -f docker/Dockerfile -t api-gateway:ci .

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -335,6 +336,50 @@ class GatewayHandlerAuthIntegrationTest {
     }
 
     @Test
+    void authMeForwardsBearerAuthorizationToAuthService() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicReference<String> authHeaderSeenByAuthMe = new AtomicReference<>();
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, exchange -> {
+            authHeaderSeenByAuthMe.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            writeJson(exchange, 200, "{\"userId\":\"user-123\",\"status\":\"A\"}");
+        }, null);
+        startGateway();
+
+        String authorizationHeader = "Bearer caller-token";
+        HttpResponse<String> response = sendGatewayRequest("/v1/auth/me", authorizationHeader, null);
+
+        assertEquals(200, response.statusCode());
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, blockCalls.get());
+        assertEquals(authorizationHeader, authHeaderSeenByAuthMe.get());
+    }
+
+    @Test
+    void publicAuthRouteWithoutChannelHintsForwardsWithoutChannelResolution() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicInteger authMeCalls = new AtomicInteger();
+        startUpstreams(validateCalls, "user-123", blockCalls, null, null, exchange -> {
+            authMeCalls.incrementAndGet();
+            writeJson(exchange, 200, "{\"userId\":\"user-123\",\"status\":\"A\"}");
+        }, null);
+        startGateway();
+
+        String rawResponse = sendRawGatewayRequest("""
+                GET /v1/auth/me HTTP/1.1\r
+                Host: 127.0.0.1\r
+                Connection: close\r
+                \r
+                """);
+
+        assertTrue(rawResponse.startsWith("HTTP/1.1 200 "), rawResponse);
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, blockCalls.get());
+        assertEquals(1, authMeCalls.get());
+    }
+
+    @Test
     void adminRouteChecksPermissionServiceBeforeForwarding() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
@@ -583,6 +628,16 @@ class GatewayHandlerAuthIntegrationTest {
             requestBuilder.header(header.getKey(), header.getValue());
         }
         return HttpClient.newHttpClient().send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private String sendRawGatewayRequest(String rawRequest) throws IOException {
+        assertNotNull(gatewayServer);
+        try (Socket socket = new Socket("127.0.0.1", gatewayServer.getAddress().getPort())) {
+            socket.setSoTimeout(3000);
+            socket.getOutputStream().write(rawRequest.getBytes(StandardCharsets.UTF_8));
+            socket.getOutputStream().flush();
+            return new String(socket.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static void writeJson(HttpExchange exchange, int statusCode, String body) throws IOException {

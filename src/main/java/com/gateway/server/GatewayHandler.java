@@ -197,7 +197,7 @@ public final class GatewayHandler implements HttpHandler {
             injectForwardedPrefix(proxiedHeaders, match.route());
             proxiedHeaders.put(TraceHeaders.REQUEST_ID, List.of(requestId));
             proxiedHeaders.put(TraceHeaders.CORRELATION_ID, List.of(correlationId));
-            injectTrustedContext(proxiedHeaders, requestPath, match.route(), requestId, resolvedUserId, resolvedUserStatus, resolveRequestChannel(exchange, requestPath, match.route()));
+            injectTrustedContext(proxiedHeaders, exchange, requestPath, match.route(), requestId, resolvedUserId, resolvedUserStatus);
             injectUpstreamAuthorization(proxiedHeaders, upstreamAuthorizationHeader);
 
             byte[] requestBody = adapter.readBody();
@@ -501,8 +501,18 @@ public final class GatewayHandler implements HttpHandler {
                         Map.Entry::getKey,
                         entry -> new ArrayList<>(entry.getValue())
                 ));
-        sanitized.entrySet().removeIf(entry -> "authorization".equalsIgnoreCase(entry.getKey()));
+        if (!shouldForwardAuthorizationHeader(route)) {
+            sanitized.entrySet().removeIf(entry -> "authorization".equalsIgnoreCase(entry.getKey()));
+        }
         return sanitized;
+    }
+
+    private boolean shouldForwardAuthorizationHeader(com.gateway.routing.RouteDefinition route) {
+        if (route.routeType() == RouteType.PROTECTED || route.routeType() == RouteType.ADMIN) {
+            return false;
+        }
+        return config.forwardAuthorizationHeader()
+                || (route.routeType() == RouteType.PUBLIC && "auth".equals(route.upstreamName()));
     }
 
     private void injectForwardedPrefix(Map<String, List<String>> proxiedHeaders, com.gateway.routing.RouteDefinition route) {
@@ -547,16 +557,17 @@ public final class GatewayHandler implements HttpHandler {
 
     private void injectTrustedContext(
             Map<String, List<String>> proxiedHeaders,
+            HttpExchange exchange,
             String requestPath,
             com.gateway.routing.RouteDefinition route,
             String requestId,
             String resolvedUserId,
-            String resolvedUserStatus,
-            RequestChannel requestChannel
+            String resolvedUserStatus
     ) {
         if (resolvedUserId == null || resolvedUserId.isBlank()) {
             return;
         }
+        RequestChannel requestChannel = resolveRequestChannel(exchange, requestPath, route);
         proxiedHeaders.put(ServiceHeaders.Trusted.USER_ID, List.of(resolvedUserId));
         if (resolvedUserStatus != null && !resolvedUserStatus.isBlank()) {
             proxiedHeaders.put(ServiceHeaders.Trusted.USER_STATUS, List.of(resolvedUserStatus));
