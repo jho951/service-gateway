@@ -1,3 +1,4 @@
+
 # Contract Change Workflow
 
 이 문서는 `gateway-service` 구현 코드를 수정한 뒤 계약 변경을 어떻게 처리할지 정리한다. 기준 계약의 원본은 `https://github.com/jho951/service-contract`이고, 이 repo는 `contract.lock.yml`로 특정 contract commit을 따른다.
@@ -93,13 +94,13 @@ git push origin <branch>
 
 ## 어디에 올리는가
 
-| 변경 내용 | 올릴 위치 |
-| --- | --- |
-| API path, request, response, status, auth 변경 | `service-contract/artifacts/openapi`, `service-contract/repositories/gateway-service` |
-| 공통 header, error, security, env, CI/CD 규칙 변경 | `service-contract/shared` |
-| 운영 port, health, ready, compose, monitoring target 변경 | `service-contract/repositories/gateway-service/ops.md` 또는 관련 운영 문서 |
-| 구현 코드, 테스트, local docs | 이 repo |
-| 이 repo가 따르는 contract commit | 이 repo의 `contract.lock.yml` |
+| 변경 내용                                                 | 올릴 위치                                                                                 |
+|-------------------------------------------------------|---------------------------------------------------------------------------------------|
+| API path, request, response, status, auth 변경          | `service-contract/artifacts/openapi`, `service-contract/repositories/gateway-service` |
+| 공통 header, error, security, env, CI/CD 규칙 변경          | `service-contract/shared`                                                             |
+| 운영 port, health, ready, compose, monitoring target 변경 | `service-contract/repositories/gateway-service/ops.md` 또는 관련 운영 문서                    |
+| 구현 코드, 테스트, local docs                                | 이 repo                                                                                |
+| 이 repo가 따르는 contract commit                           | 이 repo의 `contract.lock.yml`                                                           |
 
 ## CI가 확인하는 것
 
