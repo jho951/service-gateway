@@ -20,7 +20,7 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-COPY --from=builder /workspace/build/install/Api-gateway-server /app/
+COPY --from=builder /workspace/build/install/gateway-service /app/
 RUN touch /app/.env.dev /app/.env.prod
 
 EXPOSE 8080
@@ -28,4 +28,4 @@ EXPOSE 8080
 ENV GATEWAY_BIND=0.0.0.0
 ENV GATEWAY_PORT=8080
 
-CMD ["/app/bin/Api-gateway-server"]
+CMD ["/app/bin/gateway-service"]
