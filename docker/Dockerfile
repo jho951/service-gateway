@@ -11,7 +11,9 @@ COPY src src
 
 RUN chmod +x gradlew
 RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=secret,id=github_actor,required=false \
     if [ -f /run/secrets/gh_token ]; then export GH_TOKEN="$(cat /run/secrets/gh_token)"; fi; \
+    if [ -f /run/secrets/github_actor ]; then export GITHUB_ACTOR="$(cat /run/secrets/github_actor)"; fi; \
     ./gradlew --no-daemon clean installDist
 
 FROM eclipse-temurin:17-jre-jammy

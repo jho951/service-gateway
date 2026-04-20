@@ -66,11 +66,9 @@ class GatewayHandlerAuthIntegrationTest {
         AtomicInteger blockCalls = new AtomicInteger();
         AtomicReference<String> authHeaderSeenByBlock = new AtomicReference<>();
         AtomicReference<String> userIdHeaderSeenByBlock = new AtomicReference<>();
-        AtomicReference<String> userStatusHeaderSeenByBlock = new AtomicReference<>();
         startUpstreams(validateCalls, "user-123", blockCalls, exchange -> {
             authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
             userIdHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
-            userStatusHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Status"));
             writeJson(exchange, 200, "{\"ok\":true}");
         }, null, null, null);
         startGateway();
@@ -90,7 +88,6 @@ class GatewayHandlerAuthIntegrationTest {
         assertTrue(authHeaderSeenByBlock.get().startsWith("Bearer "));
         assertNotEquals(validShapeToken, authHeaderSeenByBlock.get());
         assertEquals("user-123", userIdHeaderSeenByBlock.get());
-        assertEquals("A", userStatusHeaderSeenByBlock.get());
         assertEquals("A", jwtClaim(authHeaderSeenByBlock.get(), "status"));
     }
 
@@ -218,10 +215,8 @@ class GatewayHandlerAuthIntegrationTest {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
         AtomicReference<String> authHeaderSeenByBlock = new AtomicReference<>();
-        AtomicReference<String> userStatusHeaderSeenByBlock = new AtomicReference<>();
         startUpstreams(validateCalls, "user-456", blockCalls, exchange -> {
             authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
-            userStatusHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Status"));
             writeJson(exchange, 200, "{\"ok\":true}");
         }, null, null, null);
         startGateway();
@@ -238,7 +233,6 @@ class GatewayHandlerAuthIntegrationTest {
         assertEquals(1, blockCalls.get());
         assertNotNull(authHeaderSeenByBlock.get());
         assertTrue(authHeaderSeenByBlock.get().startsWith("Bearer "));
-        assertEquals("A", userStatusHeaderSeenByBlock.get());
     }
 
     @Test
@@ -246,11 +240,9 @@ class GatewayHandlerAuthIntegrationTest {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger blockCalls = new AtomicInteger();
         AtomicReference<String> authHeaderSeenByBlock = new AtomicReference<>();
-        AtomicReference<String> userStatusHeaderSeenByBlock = new AtomicReference<>();
         AtomicReference<String> cookieSeenByValidate = new AtomicReference<>();
         startUpstreams(validateCalls, "user-789", blockCalls, exchange -> {
             authHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("Authorization"));
-            userStatusHeaderSeenByBlock.set(exchange.getRequestHeaders().getFirst("X-User-Status"));
             writeJson(exchange, 200, "{\"ok\":true}");
         }, exchange -> {
             cookieSeenByValidate.set(exchange.getRequestHeaders().getFirst("Cookie"));
@@ -272,7 +264,42 @@ class GatewayHandlerAuthIntegrationTest {
         assertTrue(authHeaderSeenByBlock.get().startsWith("Bearer "));
         assertNotNull(cookieSeenByValidate.get());
         assertTrue(cookieSeenByValidate.get().contains("sso_session=session-789"));
-        assertEquals("A", userStatusHeaderSeenByBlock.get());
+    }
+
+    @Test
+    void usersMePassesThroughInactiveResponse() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger blockCalls = new AtomicInteger();
+        AtomicInteger userCalls = new AtomicInteger();
+        AtomicReference<String> userIdHeaderSeenByUser = new AtomicReference<>();
+        startUpstreams(
+                validateCalls,
+                "user-inactive",
+                blockCalls,
+                null,
+                null,
+                null,
+                null,
+                exchange -> {
+                    userCalls.incrementAndGet();
+                    userIdHeaderSeenByUser.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
+                    writeJson(exchange, 403, "{\"code\":7004,\"message\":\"접근 권한이 없습니다.\"}");
+                }
+        );
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayRequest(
+                "/v1/users/me",
+                null,
+                "sso_session=session-inactive; Path=/; HttpOnly",
+                Map.of("Origin", "http://localhost:5173")
+        );
+
+        assertEquals(403, response.statusCode());
+        assertEquals(1, validateCalls.get());
+        assertEquals(1, userCalls.get());
+        assertEquals(0, blockCalls.get());
+        assertEquals("user-inactive", userIdHeaderSeenByUser.get());
     }
 
     @Test
@@ -512,6 +539,28 @@ class GatewayHandlerAuthIntegrationTest {
             HttpHandler authMeHandler,
             HttpHandler authSsoStartHandler
     ) throws IOException {
+        startUpstreams(
+                validateCalls,
+                validatedUserId,
+                blockCalls,
+                blockHandler,
+                authValidateHandler,
+                authMeHandler,
+                authSsoStartHandler,
+                null
+        );
+    }
+
+    private void startUpstreams(
+            AtomicInteger validateCalls,
+            String validatedUserId,
+            AtomicInteger blockCalls,
+            HttpHandler blockHandler,
+            HttpHandler authValidateHandler,
+            HttpHandler authMeHandler,
+            HttpHandler authSsoStartHandler,
+            HttpHandler userHandler
+    ) throws IOException {
         authServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         authServer.createContext("/auth/internal/session/validate", exchange -> {
             validateCalls.incrementAndGet();
@@ -555,7 +604,13 @@ class GatewayHandlerAuthIntegrationTest {
         authServer.start();
 
         userServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        userServer.createContext("/", exchange -> writeJson(exchange, 200, "{\"ok\":true}"));
+        userServer.createContext("/", exchange -> {
+            if (userHandler != null) {
+                userHandler.handle(exchange);
+                return;
+            }
+            writeJson(exchange, 200, "{\"ok\":true}");
+        });
         userServer.start();
 
         blockServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

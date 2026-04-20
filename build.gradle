@@ -3,8 +3,8 @@ plugins {
     id 'application'
 }
 
-group = providers.gradleProperty('projectGroup').get()
-version = providers.gradleProperty('projectVersion').get()
+group = providers.gradleProperty('project_group').get()
+version = providers.gradleProperty('project_version').get()
 
 repositories {
     mavenLocal()
@@ -20,7 +20,7 @@ repositories {
             .orElse(providers.gradleProperty('gh_token'))
             .orElse(providers.environmentVariable('GH_TOKEN'))
 
-    ['platform-governance', 'platform-security'].each { repoName ->
+    ['platform-governance', 'platform-security', 'platform-integrations'].each { repoName ->
         maven {
             name = "GitHubPackages_${repoName.replace('-', '_')}"
             url = uri("https://maven.pkg.github.com/jho951/${repoName}")
@@ -53,7 +53,7 @@ configurations.configureEach { configuration ->
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(providers.gradleProperty('java_version').map { it as int }.get())
     }
 }
 
@@ -62,11 +62,11 @@ application {
 }
 
 dependencies {
-    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.0")
-    implementation platform("io.github.jho951.platform:platform-security-bom:2.0.0")
-    implementation "io.github.jho951.platform:platform-governance-api"
-    implementation "io.github.jho951.platform:platform-security-api"
-    implementation "io.github.jho951.platform:platform-security-ip"
+    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.1")
+    implementation platform("io.github.jho951.platform:platform-security-bom:2.0.3")
+    implementation "io.github.jho951.platform:platform-governance-starter"
+    implementation "io.github.jho951.platform:platform-security-starter"
+    implementation "io.github.jho951.platform:platform-security-governance-bridge:1.0.1"
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -71,7 +71,6 @@ public final class AuthResult {
         return Map.of(
                 ServiceHeaders.Trusted.USER_ID, List.of(safe(userId)),
                 ServiceHeaders.Trusted.USER_ROLE, List.of(safe(role)),
-                ServiceHeaders.Trusted.USER_STATUS, List.of(safe(status)),
                 ServiceHeaders.Trusted.SESSION_ID, List.of(safe(sessionId)),
                 TraceHeaders.REQUEST_ID, List.of(requestId),
                 TraceHeaders.CORRELATION_ID, List.of(correlationId)

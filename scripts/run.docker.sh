@@ -1,27 +1,71 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROFILE="${1:-dev}"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_PROJECT_NAME="api-gateway-server"
+ACTION="${1:-up}"
+ENV_NAME="${2:-dev}"
+shift $(( $# > 0 ? 1 : 0 )) || true
+shift $(( $# > 0 ? 1 : 0 )) || true
 
-if [[ "$PROFILE" != "dev" && "$PROFILE" != "prod" ]]; then
-  echo "usage: bash scripts/run.docker.sh [dev|prod] [docker compose options]" >&2
+usage() {
+  echo "Usage: ./scripts/run.docker.sh [up|down|build|logs|ps|restart] [dev|prod] [docker compose options]" >&2
+}
+
+case "$ACTION" in
+  up|down|build|logs|ps|restart) ;;
+  *) usage; exit 1 ;;
+esac
+
+case "$ENV_NAME" in
+  dev|prod) COMPOSE_FILE="$PROJECT_ROOT/docker/$ENV_NAME/compose.yml" ;;
+  *) usage; exit 1 ;;
+esac
+
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  echo "Compose file not found: $COMPOSE_FILE" >&2
   exit 1
 fi
 
-if [[ $# -gt 0 ]]; then
-  shift
+gradle_property() {
+  local key="$1"
+  local gradle_properties="${HOME}/.gradle/gradle.properties"
+  [[ -f "$gradle_properties" ]] || return 0
+  awk -F= -v key="$key" '$1 == key { print $2; exit }' "$gradle_properties"
+}
+
+if [[ -z "${GH_TOKEN:-}" ]]; then
+  GH_TOKEN="$(gradle_property githubPackagesToken)"
+  [[ -n "$GH_TOKEN" ]] || GH_TOKEN="$(gradle_property githubToken)"
+  [[ -n "$GH_TOKEN" ]] || GH_TOKEN="$(gradle_property ghToken)"
+  [[ -n "$GH_TOKEN" ]] || GH_TOKEN="$(gradle_property gh_token)"
+  export GH_TOKEN
 fi
 
-cd "$ROOT_DIR"
-SHARED_NETWORK="${SHARED_SERVICE_NETWORK:-${BACKEND_SHARED_NETWORK:-${MSA_SHARED_NETWORK:-service-backbone-shared}}}"
-docker network inspect "$SHARED_NETWORK" >/dev/null 2>&1 || docker network create "$SHARED_NETWORK" >/dev/null
-if [[ "$PROFILE" == "dev" ]]; then
-  COMPOSE_FILE="docker/docker-compose.dev.yml"
-else
-  COMPOSE_FILE="docker/docker-compose.prod.yml"
+if [[ -z "${GITHUB_ACTOR:-}" ]]; then
+  GITHUB_ACTOR="$(gradle_property githubPackagesUsername)"
+  [[ -n "$GITHUB_ACTOR" ]] || GITHUB_ACTOR="$(gradle_property githubUsername)"
+  [[ -n "$GITHUB_ACTOR" ]] || GITHUB_ACTOR="jho951"
+  export GITHUB_ACTOR
 fi
 
-APP_ENV="$PROFILE" SHARED_SERVICE_NETWORK="$SHARED_NETWORK" BACKEND_SHARED_NETWORK="$SHARED_NETWORK" MSA_SHARED_NETWORK="$SHARED_NETWORK" docker compose -f "$COMPOSE_FILE" up --build "$@"
+SHARED_NETWORK="${SERVICE_SHARED_NETWORK:-${BACKEND_SHARED_NETWORK:-${MSA_SHARED_NETWORK:-service-backbone-shared}}}"
+if ! docker network inspect "$SHARED_NETWORK" >/dev/null 2>&1; then
+  echo "Creating external network: $SHARED_NETWORK"
+  docker network create "$SHARED_NETWORK" >/dev/null
+fi
+
+compose() {
+  APP_ENV="$ENV_NAME" SERVICE_SHARED_NETWORK="$SHARED_NETWORK" BACKEND_SHARED_NETWORK="$SHARED_NETWORK" MSA_SHARED_NETWORK="$SHARED_NETWORK" \
+    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
+}
+
+case "$ACTION" in
+  up) compose up --build "$@" ;;
+  down) compose down --remove-orphans "$@" ;;
+  build) compose build "$@" ;;
+  logs) compose logs -f "$@" ;;
+  ps) compose ps "$@" ;;
+  restart) compose down --remove-orphans && compose up --build "$@" ;;
+esac

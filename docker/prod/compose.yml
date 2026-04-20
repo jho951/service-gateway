@@ -1,0 +1,50 @@
+name: api-gateway-prod
+
+services:
+  gateway:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      secrets:
+        - gh_token
+        - github_actor
+    restart: always
+    ports:
+      - "${GATEWAY_HOST_BIND:-127.0.0.1}:${GATEWAY_HOST_PORT:-8080}:8080"
+    env_file:
+      - path: ../../.env.prod
+        required: false
+    environment:
+      APP_ENV: prod
+      APP_ENV_FILE: /app/.env.prod
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:?AUTH_SERVICE_URL is required}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:?USER_SERVICE_URL is required}
+      BLOCK_SERVICE_URL: ${BLOCK_SERVICE_URL:?BLOCK_SERVICE_URL is required}
+      PERMISSION_SERVICE_URL: ${PERMISSION_SERVICE_URL:-}
+      PERMISSION_ADMIN_VERIFY_URL: ${PERMISSION_ADMIN_VERIFY_URL:-}
+      GATEWAY_INTERNAL_REQUEST_SECRET: ${GATEWAY_INTERNAL_REQUEST_SECRET:?GATEWAY_INTERNAL_REQUEST_SECRET is required}
+      REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_TIMEOUT_MS: ${REDIS_TIMEOUT_MS:-1000}
+      GATEWAY_PERMISSION_CACHE_ENABLED: ${GATEWAY_PERMISSION_CACHE_ENABLED:-false}
+      GATEWAY_PERMISSION_CACHE_TTL_SECONDS: ${GATEWAY_PERMISSION_CACHE_TTL_SECONDS:-300}
+      GATEWAY_PERMISSION_CACHE_PREFIX: ${GATEWAY_PERMISSION_CACHE_PREFIX:-gateway:admin-permission:}
+      GATEWAY_SESSION_CACHE_ENABLED: ${GATEWAY_SESSION_CACHE_ENABLED:-true}
+      GATEWAY_SESSION_LOCAL_CACHE_TTL_SECONDS: ${GATEWAY_SESSION_LOCAL_CACHE_TTL_SECONDS:-3}
+      GATEWAY_SESSION_CACHE_TTL_SECONDS: ${GATEWAY_SESSION_CACHE_TTL_SECONDS:-60}
+      GATEWAY_SESSION_CACHE_KEY_PREFIX: ${GATEWAY_SESSION_CACHE_KEY_PREFIX:-gateway:session:}
+      PLATFORM_SECURITY_SERVICE_ROLE_PRESET: ${PLATFORM_SECURITY_SERVICE_ROLE_PRESET:-EDGE}
+      PLATFORM_GOVERNANCE_SERVICE_ROLE_PRESET: ${PLATFORM_GOVERNANCE_SERVICE_ROLE_PRESET:-GENERAL}
+    networks:
+      - service-shared
+
+networks:
+  service-shared:
+    external: true
+    name: ${SERVICE_SHARED_NETWORK:-${BACKEND_SHARED_NETWORK:-${MSA_SHARED_NETWORK:-service-backbone-shared}}}
+
+secrets:
+  gh_token:
+    environment: GH_TOKEN
+  github_actor:
+    environment: GITHUB_ACTOR

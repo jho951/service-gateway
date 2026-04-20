@@ -141,9 +141,6 @@ public final class AuthServiceClient {
             role = firstHeader(response, ServiceHeaders.Trusted.USER_ROLE);
         }
         String status = firstJsonField(responseBody, STATUS_FIELD);
-        if (status == null || status.isBlank()) {
-            status = firstHeader(response, ServiceHeaders.Trusted.USER_STATUS);
-        }
         String sessionId = firstJsonField(responseBody, SESSION_ID_FIELD);
         if (sessionId == null || sessionId.isBlank()) {
             sessionId = firstHeader(response, ServiceHeaders.Trusted.SESSION_ID);

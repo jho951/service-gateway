@@ -495,7 +495,7 @@ public final class GatewayHandler implements HttpHandler {
 
     private Map<String, List<String>> sanitizeInboundHeaders(HttpExchange exchange, com.gateway.routing.RouteDefinition route) {
         Map<String, List<String>> sanitized = exchange.getRequestHeaders().entrySet().stream()
-                .filter(entry -> !TrustedHeaderNames.ALL.contains(entry.getKey().toLowerCase()))
+                .filter(entry -> !TrustedHeaderNames.isTrusted(entry.getKey()))
                 .filter(entry -> !"x-forwarded-prefix".equalsIgnoreCase(entry.getKey()))
                 .collect(java.util.stream.Collectors.toMap(
                         Map.Entry::getKey,
@@ -569,9 +569,6 @@ public final class GatewayHandler implements HttpHandler {
         }
         RequestChannel requestChannel = resolveRequestChannel(exchange, requestPath, route);
         proxiedHeaders.put(ServiceHeaders.Trusted.USER_ID, List.of(resolvedUserId));
-        if (resolvedUserStatus != null && !resolvedUserStatus.isBlank()) {
-            proxiedHeaders.put(ServiceHeaders.Trusted.USER_STATUS, List.of(resolvedUserStatus));
-        }
         if (requestChannel != null) {
             proxiedHeaders.put(ServiceHeaders.Trusted.CLIENT_TYPE, List.of(requestChannel.headerValue()));
         }
@@ -582,18 +579,9 @@ public final class GatewayHandler implements HttpHandler {
                     + " upstream=" + route.upstreamName()
                     + " channel=" + (requestChannel == null ? "unknown" : requestChannel.headerValue())
                     + " userId=" + resolvedUserId
-                    + " userStatus=" + resolveUserStatus(resolvedUserStatus)
                     + " headers=[" + ServiceHeaders.Trusted.USER_ID + ", "
-                    + ServiceHeaders.Trusted.USER_STATUS + ", "
                     + ServiceHeaders.Trusted.CLIENT_TYPE + "]");
         }
-    }
-
-    private String resolveUserStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return "A";
-        }
-        return status;
     }
 
     private void injectUpstreamAuthorization(Map<String, List<String>> proxiedHeaders, String authorizationHeader) {
@@ -723,11 +711,7 @@ public final class GatewayHandler implements HttpHandler {
             authorizeAdminRoute(requestMethod, requestPath, requestId, correlationId, authResult);
         }
 
-        String userStatus = resolveUserStatus(authResult.getStatus());
-        if (userStatus == null || userStatus.isBlank()) {
-            userStatus = "A";
-        }
-        return new AuthContext(authResult.getUserId(), userStatus, verificationResult.outcome(), authResult);
+        return new AuthContext(authResult.getUserId(), authResult.getStatus(), verificationResult.outcome(), authResult);
     }
 
     private void authorizeAdminRoute(
@@ -819,11 +803,7 @@ public final class GatewayHandler implements HttpHandler {
             if (match.route().routeType() == RouteType.ADMIN) {
                 authorizeAdminRoute(requestMethod, requestPath, requestId, correlationId, sessionAuthResult);
             }
-            String userStatus = resolveUserStatus(sessionAuthResult.getStatus());
-            if (userStatus == null || userStatus.isBlank()) {
-                userStatus = "A";
-            }
-            return new AuthContext(sessionAuthResult.getUserId(), userStatus, sessionVerificationResult.outcome(), sessionAuthResult);
+            return new AuthContext(sessionAuthResult.getUserId(), sessionAuthResult.getStatus(), sessionVerificationResult.outcome(), sessionAuthResult);
         }
 
         if (hasCookieBasedAuth(exchange.getRequestHeaders().getFirst("Cookie"))) {
