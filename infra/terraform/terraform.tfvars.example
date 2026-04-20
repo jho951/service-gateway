@@ -1,0 +1,48 @@
+aws_region   = "ap-northeast-2"
+project_name = "msa"
+environment  = "prod"
+
+service_name         = "gateway-server"
+service_runtime_name = "gateway"
+service_role         = "gateway-service"
+
+vpc_cidr             = "10.22.0.0/16"
+public_subnet_cidrs  = ["10.22.1.0/24", "10.22.2.0/24"]
+private_subnet_cidrs = ["10.22.11.0/24", "10.22.12.0/24"]
+
+app_ingress_cidrs = ["203.0.113.10/32"]
+app_port      = 8080
+desired_count = 2
+task_cpu      = 512
+task_memory   = 1024
+
+health_check_path = "/health"
+
+image_tag    = "latest"
+enable_mysql = false
+
+app_env = {
+  APP_ENV                 = "prod"
+  APP_ENV_FILE            = "/app/.env.prod"
+  GATEWAY_BIND            = "0.0.0.0"
+  GATEWAY_PORT            = "8080"
+  AUTH_SERVICE_URL        = "http://auth-service:8081"
+  USER_SERVICE_URL        = "http://user-service:8082"
+  BLOCK_SERVICE_URL       = "http://documents-service:8083"
+  PERMISSION_SERVICE_URL  = "http://permission-service:8084"
+  PERMISSION_ADMIN_VERIFY_URL = "http://permission-service:8084/permissions/internal/admin/verify"
+  REDIS_HOST              = "central-redis"
+  REDIS_PORT              = "6379"
+  REDIS_TIMEOUT_MS        = "1000"
+  GATEWAY_PERMISSION_CACHE_ENABLED           = "false"
+  GATEWAY_PERMISSION_CACHE_TTL_SECONDS       = "300"
+  GATEWAY_PERMISSION_CACHE_PREFIX            = "gateway:admin-permission:"
+  GATEWAY_SESSION_CACHE_ENABLED              = "true"
+  GATEWAY_SESSION_LOCAL_CACHE_TTL_SECONDS    = "3"
+  GATEWAY_SESSION_CACHE_TTL_SECONDS          = "60"
+  GATEWAY_SESSION_CACHE_KEY_PREFIX           = "gateway:session:"
+}
+
+app_secret_env = {
+  GATEWAY_INTERNAL_REQUEST_SECRET = "replace-with-shared-internal-secret"
+}

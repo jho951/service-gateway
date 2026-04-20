@@ -11,8 +11,10 @@ import java.util.Set;
 
 /**
  * 게이트웨이에서 업스트림 서비스로 요청을 전달하는 HTTP 프록시 클라이언트입니다.
- *
- * <p>hop-by-hop 헤더는 제거하고, {@code X-Forwarded-*} 헤더를 재구성합니다.</p>
+ *<p>
+ * hop-by-hop 헤더는 제거하고,
+ * {@code X-Forwarded-*} 헤더를 재구성합니다.
+ *</p>
  */
 public final class ReverseProxyClient {
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
@@ -111,50 +113,36 @@ public final class ReverseProxyClient {
 
     private static String resolveForwardedFor(ProxyRequest request) {
         String existing = firstHeaderValue(request.getHeaders(), "X-Forwarded-For");
-        if (existing == null || existing.isBlank()) {
-            return request.getClientIp();
-        }
+        if (existing == null || existing.isBlank()) return request.getClientIp();
         return existing;
     }
 
     private static String resolveForwardedProto(ProxyRequest request) {
         String existing = firstHeaderValue(request.getHeaders(), "X-Forwarded-Proto");
-        if (existing == null || existing.isBlank()) {
-            return request.getTargetUri().getScheme();
-        }
+        if (existing == null || existing.isBlank()) return request.getTargetUri().getScheme();
         return existing;
     }
 
     private static String resolveForwardedHost(ProxyRequest request) {
         String existing = firstHeaderValue(request.getHeaders(), "X-Forwarded-Host");
-        if (existing != null && !existing.isBlank()) {
-            return existing;
-        }
+        if (existing != null && !existing.isBlank()) return existing;
 
         String host = firstHeaderValue(request.getHeaders(), "Host");
-        if (host == null || host.isBlank()) {
-            return request.getTargetUri().getHost();
-        }
+        if (host == null || host.isBlank()) return request.getTargetUri().getHost();
 
         int separatorIndex = host.lastIndexOf(':');
-        if (separatorIndex > 0 && host.indexOf(']') < separatorIndex) {
-            return host.substring(0, separatorIndex);
-        }
+        if (separatorIndex > 0 && host.indexOf(']') < separatorIndex) return host.substring(0, separatorIndex);
         return host;
     }
 
     private static String resolveForwardedPort(ProxyRequest request) {
         String existing = firstHeaderValue(request.getHeaders(), "X-Forwarded-Port");
-        if (existing != null && !existing.isBlank()) {
-            return existing;
-        }
+        if (existing != null && !existing.isBlank()) return existing;
 
         String host = firstHeaderValue(request.getHeaders(), "Host");
         if (host != null && !host.isBlank()) {
             int separatorIndex = host.lastIndexOf(':');
-            if (separatorIndex > 0 && separatorIndex < host.length() - 1 && host.indexOf(']') < separatorIndex) {
-                return host.substring(separatorIndex + 1);
-            }
+            if (separatorIndex > 0 && separatorIndex < host.length() - 1 && host.indexOf(']') < separatorIndex) return host.substring(separatorIndex + 1);
         }
 
         String proto = resolveForwardedProto(request);

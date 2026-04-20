@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM gradle:8.14.3-jdk17 AS builder
 
 WORKDIR /workspace
@@ -8,18 +10,22 @@ COPY build.gradle settings.gradle gradle.properties ./
 COPY src src
 
 RUN chmod +x gradlew
-RUN ./gradlew --no-daemon clean installDist
+RUN --mount=type=secret,id=gh_token,required=false \
+    --mount=type=secret,id=github_actor,required=false \
+    if [ -f /run/secrets/gh_token ]; then export GH_TOKEN="$(cat /run/secrets/gh_token)"; fi; \
+    if [ -f /run/secrets/github_actor ]; then export GITHUB_ACTOR="$(cat /run/secrets/github_actor)"; fi; \
+    ./gradlew --no-daemon clean installDist
 
 FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-COPY --from=builder /workspace/build/install/Api-gateway-server /app/
-RUN touch /app/.env.local /app/.env.prod
+COPY --from=builder /workspace/build/install/gateway-service /app/
+RUN touch /app/.env.dev /app/.env.prod
 
 EXPOSE 8080
 
 ENV GATEWAY_BIND=0.0.0.0
 ENV GATEWAY_PORT=8080
 
-CMD ["/app/bin/Api-gateway-server"]
+CMD ["/app/bin/gateway-service"]

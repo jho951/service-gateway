@@ -7,21 +7,21 @@ ehthumbs.db
 # Java
 *.class
 *.log
+logs/
 
 # Gradle
-.gradle
+.gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # secret
-.env
-.env.*
+.env*
 !.env.example
 .envrc
 docker/.generated
 
 # IntelliJ
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -31,4 +31,5 @@ out/
 data/
 
 # Docs or helpers
+HELP.md
 .gitattributes

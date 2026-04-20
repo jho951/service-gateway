@@ -1,6 +1,7 @@
 package com.gateway.server;
 
 import com.gateway.config.GatewayConfig;
+import com.gateway.metrics.GatewayMetrics;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ public final class GatewayServer {
     private static final Logger log = Logger.getLogger(GatewayServer.class.getName());
 
     private final GatewayConfig config;
+    private final GatewayMetrics metrics = new GatewayMetrics();
 
     /** @param config 게이트웨이 런타임 설정 */
     public GatewayServer(GatewayConfig config) {
@@ -34,7 +36,7 @@ public final class GatewayServer {
     public void start() throws IOException {
         InetSocketAddress bindAddress = config.bindAddress();
         HttpServer server = HttpServer.create(bindAddress, 0);
-        server.createContext("/", new GatewayHandler(config));
+        server.createContext("/", new GatewayHandler(config, metrics));
         server.setExecutor(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()));
         server.start();
         log.info(() -> "API gateway listening on " + bindAddress.getHostString() + ":" + bindAddress.getPort());

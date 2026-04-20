@@ -2,6 +2,7 @@ package com.gateway.exception;
 
 import java.util.Objects;
 
+/** 예외를 HTTP 응답으로 변환한 결과를 담는 값 객체입니다. */
 public final class ResponseSpec {
     private final int httpStatus;
     private final String jsonBody;

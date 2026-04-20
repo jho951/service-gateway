@@ -16,8 +16,7 @@ public final class RouteResolver {
     }
 
     /**
-     * 요청 경로와 쿼리를 해석합니다.
-     *
+     * 요청 경로와 쿼리 해석
      * @param requestPath 요청 경로
      * @param query 원본 쿼리 문자열
      * @return 매칭 결과, 없으면 {@code null}

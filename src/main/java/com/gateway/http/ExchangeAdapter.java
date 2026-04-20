@@ -87,6 +87,16 @@ public final class ExchangeAdapter {
         }
     }
 
+    public void sendText(int status, String text) throws IOException {
+        byte[] payload = text.getBytes(StandardCharsets.UTF_8);
+        Headers headers = exchange.getResponseHeaders();
+        headers.set("Content-Type", "text/plain; version=0.0.4; charset=UTF-8");
+        sendHeaders(status, payload.length);
+        try (OutputStream output = exchange.getResponseBody()) {
+            output.write(payload);
+        }
+    }
+
     /**
      * 응답 바디 없이 상태 코드만 전송합니다.
      * @param status HTTP 상태 코드

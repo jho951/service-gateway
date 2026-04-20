@@ -15,89 +15,131 @@ public final class AuthSessionValidator {
     private static final Logger log = Logger.getLogger(AuthSessionValidator.class.getName());
 
     private final URI authServiceUri;
+    private final JwtPrecheckPolicy jwtPrecheckPolicy;
     private final AuthTokenVerifier tokenVerifier;
     private final AuthServiceClient authServiceClient;
     private final LocalSessionCache localCache;
     private final RedisSessionCache redisCache;
 
+    /**
+     * 생성자
+     * @param authServiceUri
+     * @param jwtPrecheckPolicy
+     * @param tokenVerifier
+     * @param authServiceClient
+     * @param localCache
+     * @param redisCache
+     */
     public AuthSessionValidator(
             URI authServiceUri,
+            JwtPrecheckPolicy jwtPrecheckPolicy,
             AuthTokenVerifier tokenVerifier,
             AuthServiceClient authServiceClient,
             LocalSessionCache localCache,
             RedisSessionCache redisCache
     ) {
         this.authServiceUri = authServiceUri;
+        this.jwtPrecheckPolicy = jwtPrecheckPolicy;
         this.tokenVerifier = tokenVerifier;
         this.authServiceClient = authServiceClient;
         this.localCache = localCache;
         this.redisCache = redisCache;
     }
 
-    public AuthVerificationResult verify(String authorizationHeader, String requestId, String correlationId) throws IOException, InterruptedException {
-        String token = extractToken(authorizationHeader);
-        if (token.isEmpty()) {
-            return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("INVALID_AUTH_HEADER"));
+    public AuthVerificationResult verifyBearer(String authorizationHeader, String requestId, String correlationId) throws IOException, InterruptedException {
+        JwtPrecheckPolicy.Result precheckResult = jwtPrecheckPolicy == null
+                ? JwtPrecheckPolicy.Result.accepted("PRECHECK_BYPASSED")
+                : jwtPrecheckPolicy.precheck(authorizationHeader);
+        if (!precheckResult.accepted()) {
+            return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected(precheckResult.outcome()));
         }
+
+        String token = extractToken(authorizationHeader);
+        if (token.isEmpty()) return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("INVALID_AUTH_HEADER"));
         String cacheKey = SessionCacheKey.fromToken(token);
 
-        AuthResult cached = localCache.get(cacheKey);
-        if (cached != null) {
-            return AuthVerificationResult.fromCache(cached, "SESSION_CACHE_L1");
-        }
-
-        if (redisCache != null && redisCache.enabled()) {
-            try {
-                cached = redisCache.get(cacheKey);
-            } catch (IOException ex) {
-                log.log(Level.FINE, "redis session cache read failed", ex);
-            }
-            if (cached != null) {
-                localCache.put(cacheKey, cached);
-                return AuthVerificationResult.fromCache(cached, "SESSION_CACHE_L2");
-            }
-        }
+        CachedAuth cached = loadCachedAuthResult(cacheKey);
+        if (cached != null) return AuthVerificationResult.fromCache(cached.authResult(), cached.outcome());
 
         AuthTokenVerifier.Result verificationResult = tokenVerifier.verify(authorizationHeader);
         if (!verificationResult.verified()) {
             return AuthVerificationResult.failed(verificationResult);
         }
 
-        AuthResult authResult = authServiceClient.validateSession(authServiceUri, authorizationHeader, null, requestId, correlationId);
+        AuthResult authResult = validateSession(authorizationHeader, null, requestId, correlationId);
         if (!authResult.isAuthenticated()) {
             return AuthVerificationResult.failed(verificationResult);
         }
 
-        localCache.put(cacheKey, authResult);
-        if (redisCache != null && redisCache.enabled()) {
-            try {
-                redisCache.put(cacheKey, authResult);
-            } catch (IOException ex) {
-                log.log(Level.FINE, "redis session cache write failed", ex);
-            }
-        }
+        cacheAuthResult(cacheKey, authResult);
 
         return AuthVerificationResult.fromService(verificationResult, authResult);
     }
 
-    public AuthVerificationResult verifyBySessionCookie(String cookieHeader, String requestId, String correlationId) throws IOException, InterruptedException {
-        if (cookieHeader == null || cookieHeader.isBlank() || !cookieHeader.contains("sso_session=")) {
+    public AuthVerificationResult verifyCookie(String cookieHeader, String requestId, String correlationId) throws IOException, InterruptedException {
+        if (!hasSessionCookie(cookieHeader)) {
             return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("MISSING_SSO_SESSION_COOKIE"));
         }
-        AuthResult authResult = authServiceClient.validateSession(authServiceUri, null, cookieHeader, requestId, correlationId);
-        if (!authResult.isAuthenticated()) {
-            return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("COOKIE_SESSION_UNAUTHORIZED"));
-        }
+        AuthResult authResult = validateSession(null, cookieHeader, requestId, correlationId);
+        if (!authResult.isAuthenticated()) return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("COOKIE_SESSION_UNAUTHORIZED"));
         return AuthVerificationResult.fromService(AuthTokenVerifier.Result.skipped("COOKIE_SESSION_VALIDATED"), authResult);
     }
 
+    public String exchangeBasicForBearer(String authorizationHeader, String requestId, String correlationId) throws IOException, InterruptedException {
+        return authServiceClient.exchangeBasicForBearer(authServiceUri, authorizationHeader, requestId, correlationId);
+    }
+
+    private CachedAuth loadCachedAuthResult(String cacheKey) {
+        AuthResult cached = localCache.get(cacheKey);
+        if (cached != null) {
+            return new CachedAuth(cached, "SESSION_CACHE_L1");
+        }
+
+        if (redisCache == null || !redisCache.enabled()) {
+            return null;
+        }
+
+        try {
+            cached = redisCache.get(cacheKey);
+        } catch (IOException ex) {
+            log.log(Level.FINE, "redis session cache read failed", ex);
+            return null;
+        }
+        if (cached != null) {
+            localCache.put(cacheKey, cached);
+            return new CachedAuth(cached, "SESSION_CACHE_L2");
+        }
+        return null;
+    }
+
+    private void cacheAuthResult(String cacheKey, AuthResult authResult) {
+        localCache.put(cacheKey, authResult);
+        if (redisCache == null || !redisCache.enabled()) {
+            return;
+        }
+
+        try {
+            redisCache.put(cacheKey, authResult);
+        } catch (IOException ex) {
+            log.log(Level.FINE, "redis session cache write failed", ex);
+        }
+    }
+
+    private AuthResult validateSession(String authorizationHeader, String cookieHeader, String requestId, String correlationId) throws IOException, InterruptedException {
+        return authServiceClient.validateSession(authServiceUri, authorizationHeader, cookieHeader, requestId, correlationId);
+    }
+
+    private static boolean hasSessionCookie(String cookieHeader) {
+        return cookieHeader != null && !cookieHeader.isBlank() && cookieHeader.contains("sso_session=");
+    }
+
+    private record CachedAuth(AuthResult authResult, String outcome) {
+    }
+
     private static String extractToken(String authorizationHeader) {
-        if (authorizationHeader == null || authorizationHeader.isBlank()) {
-            return "";
-        }
-        if (!authorizationHeader.startsWith("Bearer ")) {
-            return "";
-        }
+        if (authorizationHeader == null) return "";
+        if (authorizationHeader.isBlank()) return "";
+        if (!authorizationHeader.startsWith("Bearer ")) return "";
         return authorizationHeader.substring("Bearer ".length()).trim();
     }
 }

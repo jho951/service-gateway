@@ -3,21 +3,57 @@ plugins {
     id 'application'
 }
 
-group = providers.gradleProperty('projectGroup').get()
-version = providers.gradleProperty('projectVersion').get()
+group = providers.gradleProperty('project_group').get()
+version = providers.gradleProperty('project_version').get()
 
 repositories {
+    mavenLocal()
     mavenCentral()
+
+    def githubPackagesUsername = providers.gradleProperty('githubPackagesUsername')
+            .orElse(providers.gradleProperty('githubUsername'))
+            .orElse(providers.environmentVariable('GITHUB_ACTOR'))
+            .orElse('jho951')
+    def githubPackagesToken = providers.gradleProperty('githubPackagesToken')
+            .orElse(providers.gradleProperty('githubToken'))
+            .orElse(providers.gradleProperty('ghToken'))
+            .orElse(providers.gradleProperty('gh_token'))
+            .orElse(providers.environmentVariable('GH_TOKEN'))
+
+    ['platform-governance', 'platform-security', 'platform-integrations'].each { repoName ->
+        maven {
+            name = "GitHubPackages_${repoName.replace('-', '_')}"
+            url = uri("https://maven.pkg.github.com/jho951/${repoName}")
+            credentials {
+                username = githubPackagesUsername.get()
+                password = githubPackagesToken.orNull
+            }
+        }
+    }
 }
 
-ext {
-    ipGuardVersion = '2.0.5'
-    auditLogVersion = '1.0.1'
+configurations.configureEach { configuration ->
+    if (configuration.canBeResolved) {
+        configuration.incoming.beforeResolve {
+            def token = providers.gradleProperty('githubPackagesToken')
+                    .orElse(providers.gradleProperty('githubToken'))
+                    .orElse(providers.gradleProperty('ghToken'))
+                    .orElse(providers.gradleProperty('gh_token'))
+                    .orElse(providers.environmentVariable('GH_TOKEN'))
+                    .orNull
+            if (token == null || token.isBlank()) {
+                throw new GradleException(
+                        'GitHub Packages token is required to resolve platform dependencies. ' +
+                                'Set githubPackagesToken in ~/.gradle/gradle.properties or export GH_TOKEN.'
+                )
+            }
+        }
+    }
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(providers.gradleProperty('java_version').map { it as int }.get())
     }
 }
 
@@ -26,9 +62,11 @@ application {
 }
 
 dependencies {
-    implementation "io.github.jho951:ip-guard-core:${ipGuardVersion}"
-    implementation "io.github.jho951:ip-guard-spi:${ipGuardVersion}"
-    implementation "io.github.jho951:core:${auditLogVersion}"
+    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.1")
+    implementation platform("io.github.jho951.platform:platform-security-bom:2.0.3")
+    implementation "io.github.jho951.platform:platform-governance-starter"
+    implementation "io.github.jho951.platform:platform-security-starter"
+    implementation "io.github.jho951.platform:platform-security-governance-bridge:1.0.1"
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

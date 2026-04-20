@@ -10,11 +10,9 @@ public final class TrustedHeaderNames {
     /** 인스턴스 화 방지 */
     private TrustedHeaderNames() {}
 
-    public static final Set<String> ALL = Set.of(
-            ServiceHeaders.Trusted.USER_ID.toLowerCase(),
-            ServiceHeaders.Trusted.USER_ROLE.toLowerCase(),
-            ServiceHeaders.Trusted.USER_STATUS.toLowerCase(),
+    private static final Set<String> EXACT = Set.of(
             ServiceHeaders.Trusted.SESSION_ID.toLowerCase(),
+            ServiceHeaders.Trusted.CLIENT_TYPE.toLowerCase(),
             ServiceHeaders.Auth.INTERNAL_REQUEST_SECRET.toLowerCase(),
             TraceHeaders.REQUEST_ID.toLowerCase(),
             TraceHeaders.CORRELATION_ID.toLowerCase(),
@@ -25,5 +23,11 @@ public final class TrustedHeaderNames {
             "x-auth-authenticated"
     );
 
-
+    public static boolean isTrusted(String headerName) {
+        if (headerName == null || headerName.isBlank()) {
+            return false;
+        }
+        String normalized = headerName.toLowerCase();
+        return EXACT.contains(normalized) || normalized.startsWith("x-user-");
+    }
 }

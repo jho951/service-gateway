@@ -1,34 +1,48 @@
-name: api-gateway
+name: api-gateway-dev
 
 services:
   gateway:
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
+      secrets:
+        - gh_token
+        - github_actor
     restart: unless-stopped
     ports:
       - "8080:8080"
     env_file:
-      - ../.env.${APP_ENV:-local}
+      - path: ../../.env.dev
+        required: false
     environment:
-      APP_ENV: ${APP_ENV:-local}
-      APP_ENV_FILE: /app/.env.${APP_ENV:-local}
+      APP_ENV: dev
+      APP_ENV_FILE: /app/.env.dev
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
-      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-server:8082}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       BLOCK_SERVICE_URL: ${BLOCK_SERVICE_URL:-http://documents-service:8083}
       PERMISSION_SERVICE_URL: ${PERMISSION_SERVICE_URL:-http://permission-service:8084}
       PERMISSION_ADMIN_VERIFY_URL: ${PERMISSION_ADMIN_VERIFY_URL:-http://permission-service:8084/permissions/internal/admin/verify}
+      GATEWAY_INTERNAL_REQUEST_SECRET: ${GATEWAY_INTERNAL_REQUEST_SECRET:-local-authz-internal-secret}
       REDIS_HOST: ${REDIS_HOST:-central-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_TIMEOUT_MS: ${REDIS_TIMEOUT_MS:-1000}
+      GATEWAY_PERMISSION_CACHE_ENABLED: ${GATEWAY_PERMISSION_CACHE_ENABLED:-false}
+      GATEWAY_PERMISSION_CACHE_TTL_SECONDS: ${GATEWAY_PERMISSION_CACHE_TTL_SECONDS:-300}
+      GATEWAY_PERMISSION_CACHE_PREFIX: ${GATEWAY_PERMISSION_CACHE_PREFIX:-gateway:admin-permission:}
       GATEWAY_SESSION_CACHE_ENABLED: ${GATEWAY_SESSION_CACHE_ENABLED:-true}
       GATEWAY_SESSION_LOCAL_CACHE_TTL_SECONDS: ${GATEWAY_SESSION_LOCAL_CACHE_TTL_SECONDS:-3}
       GATEWAY_SESSION_CACHE_TTL_SECONDS: ${GATEWAY_SESSION_CACHE_TTL_SECONDS:-60}
       GATEWAY_SESSION_CACHE_KEY_PREFIX: ${GATEWAY_SESSION_CACHE_KEY_PREFIX:-gateway:session:}
     networks:
-      - msa-shared
+      - service-shared
 
 networks:
-  msa-shared:
+  service-shared:
     external: true
-    name: ${MSA_SHARED_NETWORK:-service-backbone-shared}
+    name: ${SERVICE_SHARED_NETWORK:-${BACKEND_SHARED_NETWORK:-${MSA_SHARED_NETWORK:-service-backbone-shared}}}
+
+secrets:
+  gh_token:
+    environment: GH_TOKEN
+  github_actor:
+    environment: GITHUB_ACTOR

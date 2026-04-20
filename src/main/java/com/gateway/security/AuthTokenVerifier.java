@@ -84,35 +84,23 @@ public final class AuthTokenVerifier {
             return Result.rejected("INVALID_JWT_PARTS");
         }
         for (String segment : segments) {
-            if (segment.isBlank()) {
-                return Result.rejected("INVALID_JWT_SEGMENT");
-            }
+            if (segment.isBlank()) return Result.rejected("INVALID_JWT_SEGMENT");
         }
 
         String headerJson = decodeSegment(segments[0]);
         String payloadJson = decodeSegment(segments[1]);
-        if (headerJson == null || payloadJson == null) {
-            return Result.rejected("INVALID_JWT_PAYLOAD");
-        }
+        if (headerJson == null || payloadJson == null) return Result.rejected("INVALID_JWT_PAYLOAD");
 
         byte[] signature = decodeSignature(segments[2]);
-        if (signature == null) {
-            return Result.rejected("INVALID_JWT_SIGNATURE");
-        }
+        if (signature == null) return Result.rejected("INVALID_JWT_SIGNATURE");
 
         String alg = extractStringClaim(headerJson, "alg");
-        if (alg == null) {
-            return Result.rejected("MISSING_ALGORITHM");
-        }
-        if (!expectedAlgorithm.equalsIgnoreCase(alg)) {
-            return Result.rejected("UNEXPECTED_ALGORITHM");
-        }
+        if (alg == null) return Result.rejected("MISSING_ALGORITHM");
+        if (!expectedAlgorithm.equalsIgnoreCase(alg)) return Result.rejected("UNEXPECTED_ALGORITHM");
 
         if (keyId != null && !keyId.isBlank()) {
             String kid = extractStringClaim(headerJson, "kid");
-            if (kid == null || !keyId.equals(kid)) {
-                return Result.rejected("KEY_ID_MISMATCH");
-            }
+            if (kid == null || !keyId.equals(kid)) return Result.rejected("KEY_ID_MISMATCH");
         }
 
         String signingInput = segments[0] + "." + segments[1];
@@ -152,9 +140,7 @@ public final class AuthTokenVerifier {
     }
 
     private boolean verifyMac(String signingInput, String macAlgorithm, byte[] signature) {
-        if (sharedSecretBytes == null) {
-            return false;
-        }
+        if (sharedSecretBytes == null) return false;
         try {
             Mac mac = Mac.getInstance(macAlgorithm);
             mac.init(new SecretKeySpec(sharedSecretBytes, macAlgorithm));
@@ -216,7 +202,8 @@ public final class AuthTokenVerifier {
     }
 
     private static String normalizeAlgorithm(String algorithm) {
-        if (algorithm == null || algorithm.isBlank()) return "RS256";
+        if (algorithm == null) return "RS256";
+        if (algorithm.isBlank()) return "RS256";
         return algorithm.trim();
     }
 

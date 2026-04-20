@@ -1,5 +1,6 @@
 package com.gateway.exception;
 
+/** Gateway 실패 응답의 JSON 바디 구조를 나타내는 값 객체입니다. */
 public final class GatewayErrorResponse {
     private final String code;
     private final String message;

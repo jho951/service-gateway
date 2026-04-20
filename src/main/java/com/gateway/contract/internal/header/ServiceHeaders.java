@@ -18,8 +18,6 @@ public final class ServiceHeaders {
         public static final String USER_ID = "X-User-Id";
         /** 사용자의 권한 */
         public static final String USER_ROLE = "X-User-Role";
-        /** 사용자의 상태 */
-        public static final String USER_STATUS = "X-User-Status";
         /** 통합 로그인(SSO) 환경에서 사용하는 인증 토큰 */
         public static final String SESSION_ID = "X-Session-Id";
 

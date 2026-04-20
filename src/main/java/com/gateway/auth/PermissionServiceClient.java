@@ -29,9 +29,10 @@ public final class PermissionServiceClient {
             String path,
             String requestId,
             String correlationId,
-            AuthResult authResult
+            AuthResult authResult,
+            String internalRequestSecret
     ) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(verifyUri)
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(verifyUri)
                 .timeout(timeout)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .header(ServiceHeaders.Forwarded.ORIGINAL_METHOD, method)
@@ -39,9 +40,13 @@ public final class PermissionServiceClient {
                 .header(TraceHeaders.REQUEST_ID, requestId)
                 .header(TraceHeaders.CORRELATION_ID, correlationId)
                 .header(ServiceHeaders.Trusted.USER_ID, authResult.getUserId())
-                .header(ServiceHeaders.Trusted.USER_ROLE, authResult.getRole())
-                .header(ServiceHeaders.Trusted.SESSION_ID, authResult.getSessionId())
-                .build();
+                .header(ServiceHeaders.Trusted.SESSION_ID, authResult.getSessionId());
+
+        if (internalRequestSecret != null && !internalRequestSecret.isBlank()) {
+            requestBuilder.header(ServiceHeaders.Auth.INTERNAL_REQUEST_SECRET, internalRequestSecret);
+        }
+
+        HttpRequest request = requestBuilder.build();
 
         HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
         return response.statusCode() == 200;

@@ -3,6 +3,7 @@ package com.gateway.exception;
 import com.gateway.code.GatewayErrorCode;
 import com.gateway.http.Jsons;
 
+/** Gateway 예외를 HTTP 응답 바디와 상태 코드로 변환하는 헬퍼입니다. */
 public final class GatewayExceptionHandler {
     private GatewayExceptionHandler() {}
 
@@ -49,23 +50,5 @@ public final class GatewayExceptionHandler {
                 gatewayErrorCode.getHttpStatus(),
                 Jsons.toJson(body)
         );
-    }
-
-    public static final class ResponseSpec {
-        private final int httpStatus;
-        private final String jsonBody;
-
-        public ResponseSpec(int httpStatus, String jsonBody) {
-            this.httpStatus = httpStatus;
-            this.jsonBody = jsonBody;
-        }
-
-        public int httpStatus() {
-            return httpStatus;
-        }
-
-        public String jsonBody() {
-            return jsonBody;
-        }
     }
 }
