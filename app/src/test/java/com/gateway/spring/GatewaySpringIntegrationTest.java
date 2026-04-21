@@ -154,35 +154,48 @@ class GatewaySpringIntegrationTest {
     void authAliasesForwardToAuthServiceUpstream() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger loginGithubCalls = new AtomicInteger();
-        AtomicInteger sessionCalls = new AtomicInteger();
+        AtomicInteger meCalls = new AtomicInteger();
+        AtomicReference<String> userIdHeaderSeenByAuthMe = new AtomicReference<>();
 
-        startUpstreams(validateCalls, "user-123", new AtomicInteger(), null, exchange -> writeJson(
-                exchange,
-                200,
-                "{\"authenticated\":true,\"userId\":\"user-123\",\"role\":\"USER\",\"status\":\"A\",\"sessionId\":\"session-1\"}"
-        ), null, null, null);
+        startUpstreams(
+                validateCalls,
+                "user-123",
+                new AtomicInteger(),
+                null,
+                null,
+                exchange -> {
+                    meCalls.incrementAndGet();
+                    userIdHeaderSeenByAuthMe.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
+                    writeJson(exchange, 200, "{\"userId\":\"user-123\",\"status\":\"A\"}");
+                },
+                null,
+                null
+        );
         authServer.createContext("/auth/login/github", exchange -> {
             loginGithubCalls.incrementAndGet();
             writeJson(exchange, 200, "{\"redirect\":true}");
         });
-        authServer.createContext("/auth/session", exchange -> {
-            sessionCalls.incrementAndGet();
-            writeJson(exchange, 200, "{\"authenticated\":true,\"userId\":\"user-123\"}");
-        });
         startGateway();
 
+        String accessToken = jwt("{\"sub\":\"user-123\",\"exp\":4102444800}");
+
         HttpResponse<String> loginGithubResponse = sendGatewayRequest("/v1/auth/login/github", null, null, Map.of());
-        HttpResponse<String> sessionResponse = sendGatewayRequest(
-                "/v1/auth/session",
+        HttpResponse<String> meResponse = sendGatewayRequest(
+                "/v1/auth/me?page=explain",
                 null,
-                "sso_session=session-1; Path=/; HttpOnly",
-                Map.of("Origin", "http://localhost:5173")
+                "sso_session=session-1; ACCESS_TOKEN=" + accessToken,
+                Map.of(
+                        "Origin", "http://localhost:5173",
+                        "X-Client-Type", "web"
+                )
         );
 
-        assertEquals(200, loginGithubResponse.statusCode());
-        assertEquals(200, sessionResponse.statusCode());
+        assertEquals(200, loginGithubResponse.statusCode(), loginGithubResponse.body());
+        assertEquals(200, meResponse.statusCode(), meResponse.body());
         assertEquals(1, loginGithubCalls.get());
-        assertEquals(1, sessionCalls.get());
+        assertEquals(1, meCalls.get());
+        assertEquals(1, validateCalls.get());
+        assertEquals("user-123", userIdHeaderSeenByAuthMe.get());
     }
 
     @Test

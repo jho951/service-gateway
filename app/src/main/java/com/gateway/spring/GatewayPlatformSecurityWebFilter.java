@@ -419,7 +419,11 @@ public final class GatewayPlatformSecurityWebFilter implements WebFilter, Ordere
             return null;
         }
         if (requestChannel.isWeb()) {
-            String accessToken = extractCookieValue(exchange.getRequest().getHeaders().getFirst(HttpHeaders.COOKIE), "ACCESS_TOKEN");
+            String cookieHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.COOKIE);
+            if (extractCookieValue(cookieHeader, "sso_session") != null) {
+                return null;
+            }
+            String accessToken = extractCookieValue(cookieHeader, "ACCESS_TOKEN");
             if (accessToken != null && !accessToken.isBlank()) {
                 return "Bearer " + accessToken;
             }

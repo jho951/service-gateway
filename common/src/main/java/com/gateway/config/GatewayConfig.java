@@ -397,11 +397,11 @@ public final class GatewayConfig {
         routes.add(new RouteDefinition(AuthApiPaths.EXCHANGE, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.REFRESH, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.LOGOUT, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(AuthApiPaths.SESSION, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
+        routes.add(new RouteDefinition(AuthApiPaths.SESSION, RouteType.PROTECTED, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.OAUTH2_AUTHORIZATION_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.LOGIN_OAUTH2_CALLBACK_ALL, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.JWKS, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
-        routes.add(new RouteDefinition(AuthApiPaths.ME, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
+        routes.add(new RouteDefinition(AuthApiPaths.ME, RouteType.PROTECTED, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(AuthApiPaths.ERROR, RouteType.PUBLIC, "auth", authServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.SIGNUP, RouteType.PUBLIC, "user", userServiceUri, AuthApiPaths.API_PREFIX));
         routes.add(new RouteDefinition(UserApiPaths.ME, RouteType.PROTECTED, "user", userServiceUri, AuthApiPaths.API_PREFIX));
