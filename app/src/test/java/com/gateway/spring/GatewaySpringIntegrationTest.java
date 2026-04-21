@@ -154,8 +154,6 @@ class GatewaySpringIntegrationTest {
     void authAliasesForwardToAuthServiceUpstream() throws Exception {
         AtomicInteger validateCalls = new AtomicInteger();
         AtomicInteger loginGithubCalls = new AtomicInteger();
-        AtomicInteger meCalls = new AtomicInteger();
-        AtomicReference<String> userIdHeaderSeenByAuthMe = new AtomicReference<>();
 
         startUpstreams(
                 validateCalls,
@@ -163,11 +161,7 @@ class GatewaySpringIntegrationTest {
                 new AtomicInteger(),
                 null,
                 null,
-                exchange -> {
-                    meCalls.incrementAndGet();
-                    userIdHeaderSeenByAuthMe.set(exchange.getRequestHeaders().getFirst("X-User-Id"));
-                    writeJson(exchange, 200, "{\"userId\":\"user-123\",\"status\":\"A\"}");
-                },
+                null,
                 null,
                 null
         );
@@ -192,10 +186,10 @@ class GatewaySpringIntegrationTest {
 
         assertEquals(200, loginGithubResponse.statusCode(), loginGithubResponse.body());
         assertEquals(200, meResponse.statusCode(), meResponse.body());
+        assertTrue(meResponse.body().contains("\"id\":\"user-123\""), meResponse.body());
+        assertTrue(meResponse.body().contains("\"status\":\"A\""), meResponse.body());
         assertEquals(1, loginGithubCalls.get());
-        assertEquals(1, meCalls.get());
         assertEquals(1, validateCalls.get());
-        assertEquals("user-123", userIdHeaderSeenByAuthMe.get());
     }
 
     @Test
@@ -552,6 +546,7 @@ class GatewaySpringIntegrationTest {
         env.put("GATEWAY_INTERNAL_IP_GUARD_ENABLED", "false");
         env.put("GATEWAY_ADMIN_IP_GUARD_ENABLED", "false");
         env.put("GATEWAY_AUTHZ_CACHE_ENABLED", "false");
+        env.put("GATEWAY_SESSION_CACHE_ENABLED", "false");
         env.put("AUTH_JWT_VERIFY_ENABLED", "false");
         env.put("AUTH_SERVICE_INTERNAL_REQUEST_SECRET", "local-internal-api-key");
         env.put("AUTH_SERVICE_URL", "http://127.0.0.1:" + authServer.getAddress().getPort());

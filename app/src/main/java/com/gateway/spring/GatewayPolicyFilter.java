@@ -8,6 +8,7 @@ import com.gateway.contract.internal.header.ServiceHeaders;
 import com.gateway.contract.internal.header.TraceHeaders;
 import com.gateway.exception.GatewayException;
 import com.gateway.exception.ResponseSpec;
+import com.gateway.http.Jsons;
 import com.gateway.http.TrustedHeaderNames;
 import com.gateway.metrics.GatewayMetrics;
 import com.gateway.policy.CorsPolicy;
@@ -105,6 +106,10 @@ public final class GatewayPolicyFilter implements GlobalFilter, Ordered {
 
         try {
             FilterContext context = prepare(exchange, match, requestPath, requestId, correlationId);
+            if (shouldServeLocalAuthResponse(requestPath, context.authResult())) {
+                return write(exchange, localAuthResponse(requestPath, context.authResult()))
+                        .doOnSuccess(ignored -> record(exchange, context, startedAt, null));
+            }
             return chain.filter(context.exchange())
                     .doOnSuccess(ignored -> record(context.exchange(), context, startedAt, null))
                     .onErrorResume(GatewayException.class, ex -> {
@@ -293,6 +298,34 @@ public final class GatewayPolicyFilter implements GlobalFilter, Ordered {
         return responseContractWriter.write(exchange, responseSpec);
     }
 
+    private boolean shouldServeLocalAuthResponse(String requestPath, AuthResult authResult) {
+        if (authResult == null || !authResult.isAuthenticated()) {
+            return false;
+        }
+        return "/v1/auth/me".equals(requestPath) || "/v1/auth/session".equals(requestPath);
+    }
+
+    private ResponseSpec localAuthResponse(String requestPath, AuthResult authResult) {
+        if ("/v1/auth/session".equals(requestPath)) {
+            return new ResponseSpec(200, Jsons.toJson(Map.of(
+                    "authenticated", true,
+                    "userId", safe(authResult.getUserId()),
+                    "role", safe(authResult.getRole()),
+                    "status", safe(authResult.getStatus()),
+                    "sessionId", safe(authResult.getSessionId())
+            )));
+        }
+
+        return new ResponseSpec(200, Jsons.toJson(Map.of(
+                "id", safe(authResult.getUserId()),
+                "email", safe(authResult.getEmail()),
+                "name", safe(authResult.getName()),
+                "avatarUrl", safe(authResult.getAvatarUrl()),
+                "role", safe(authResult.getRole()),
+                "status", safe(authResult.getStatus())
+        )));
+    }
+
     private void record(ServerWebExchange exchange, FilterContext context, long startedAt, String failureReason) {
         try {
             int status = 500;
@@ -411,6 +444,10 @@ public final class GatewayPolicyFilter implements GlobalFilter, Ordered {
             current = current.getCause();
         }
         return false;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private record FilterContext(

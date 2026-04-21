@@ -9,7 +9,9 @@ import java.security.Signature;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,6 +26,8 @@ import javax.crypto.spec.SecretKeySpec;
 public final class AuthTokenVerifier {
     private static final Pattern AUD_ARRAY = Pattern.compile("\"aud\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
     private static final Pattern ARRAY_VALUE = Pattern.compile("\"([^\"]+)\"");
+    private static final Pattern ROLES_ARRAY = Pattern.compile("\"roles\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+    private static final Pattern AUTHORITIES_ARRAY = Pattern.compile("\"authorities\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
 
     private final boolean enabled;
     private final PublicKey publicKey;
@@ -128,6 +132,37 @@ public final class AuthTokenVerifier {
         return Result.verified("TOKEN_VERIFIED");
     }
 
+    public TokenClaims parseClaims(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank() || !authorizationHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = authorizationHeader.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) {
+            return null;
+        }
+        String[] segments = token.split("\\.", -1);
+        if (segments.length != 3) {
+            return null;
+        }
+        String payloadJson = decodeSegment(segments[1]);
+        if (payloadJson == null) {
+            return null;
+        }
+        List<String> roles = extractArrayClaim(payloadJson, ROLES_ARRAY);
+        if (roles.isEmpty()) {
+            roles = extractArrayClaim(payloadJson, AUTHORITIES_ARRAY);
+        }
+        String role = roles.isEmpty() ? "" : roles.get(0);
+        return new TokenClaims(
+                extractStringClaim(payloadJson, "sub"),
+                role,
+                extractStringClaim(payloadJson, "status"),
+                extractStringClaim(payloadJson, "email"),
+                extractStringClaim(payloadJson, "name"),
+                extractStringClaim(payloadJson, "avatarUrl")
+        );
+    }
+
     private boolean verifySignature(String signingInput, String signatureAlgorithm, byte[] signature) {
         try {
             Signature verifier = Signature.getInstance(signatureAlgorithm);
@@ -201,6 +236,19 @@ public final class AuthTokenVerifier {
         return false;
     }
 
+    private List<String> extractArrayClaim(String payloadJson, Pattern pattern) {
+        Matcher arrayMatcher = pattern.matcher(payloadJson);
+        if (!arrayMatcher.find()) {
+            return List.of();
+        }
+        Matcher valueMatcher = ARRAY_VALUE.matcher(arrayMatcher.group(1));
+        List<String> values = new ArrayList<>();
+        while (valueMatcher.find()) {
+            values.add(valueMatcher.group(1));
+        }
+        return List.copyOf(values);
+    }
+
     private static String normalizeAlgorithm(String algorithm) {
         if (algorithm == null) return "RS256";
         if (algorithm.isBlank()) return "RS256";
@@ -251,5 +299,15 @@ public final class AuthTokenVerifier {
         public static Result rejected(String outcome) {
             return new Result(true, false, outcome);
         }
+    }
+
+    public record TokenClaims(
+            String userId,
+            String role,
+            String status,
+            String email,
+            String name,
+            String avatarUrl
+    ) {
     }
 }

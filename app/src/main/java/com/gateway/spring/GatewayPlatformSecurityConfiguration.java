@@ -7,6 +7,7 @@ import com.gateway.auth.AuthServiceClient;
 import com.gateway.auth.AuthzServiceClient;
 import com.gateway.cache.LocalSessionCache;
 import com.gateway.cache.RedisAuthzCache;
+import com.gateway.cache.RedisSsoSessionStore;
 import com.gateway.cache.RedisSessionCache;
 import com.gateway.config.GatewayConfig;
 import com.gateway.contract.external.path.AuthApiPaths;
@@ -161,6 +162,12 @@ public class GatewayPlatformSecurityConfiguration {
                         config.redisTimeoutMs(),
                         config.sessionCacheTtlSeconds(),
                         config.sessionCacheKeyPrefix()
+                ),
+                new RedisSsoSessionStore(
+                        config.redisHost(),
+                        config.redisPort(),
+                        config.redisPassword(),
+                        config.redisTimeoutMs()
                 )
         );
     }

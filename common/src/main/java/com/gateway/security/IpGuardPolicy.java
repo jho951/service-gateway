@@ -44,6 +44,18 @@ public final class IpGuardPolicy {
         return defaultAllow;
     }
 
+    public boolean enabled() {
+        return enabled;
+    }
+
+    public int ruleCount() {
+        return rules.size();
+    }
+
+    public boolean defaultAllow() {
+        return defaultAllow;
+    }
+
     private static List<IpRule> compileRules(List<String> rawRules) {
         if (rawRules == null || rawRules.isEmpty()) return List.of();
 

@@ -17,6 +17,9 @@ public final class AuthResult {
     private final String role;
     private final String status;
     private final String sessionId;
+    private final String email;
+    private final String name;
+    private final String avatarUrl;
 
     /**
      * 값이 null일 경우 빈 문자열("")로 치환
@@ -39,12 +42,29 @@ public final class AuthResult {
      * @param sessionId 세션 정보
      */
     public AuthResult(int statusCode, boolean authenticated, String userId, String role, String status, String sessionId) {
+        this(statusCode, authenticated, userId, role, status, sessionId, "", "", "");
+    }
+
+    public AuthResult(
+            int statusCode,
+            boolean authenticated,
+            String userId,
+            String role,
+            String status,
+            String sessionId,
+            String email,
+            String name,
+            String avatarUrl
+    ) {
         this.statusCode = statusCode;
         this.authenticated = authenticated;
         this.userId = userId;
         this.role = role;
         this.status = status;
         this.sessionId = sessionId;
+        this.email = email;
+        this.name = name;
+        this.avatarUrl = avatarUrl;
     }
 
     public int getStatusCode() {return statusCode;}
@@ -59,6 +79,9 @@ public final class AuthResult {
         return status;
     }
     public String getSessionId() {return sessionId;}
+    public String getEmail() { return email; }
+    public String getName() { return name; }
+    public String getAvatarUrl() { return avatarUrl; }
     public boolean isAdmin() {return "ADMIN".equalsIgnoreCase(role);}
 
     /**

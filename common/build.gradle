@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.1")
-    implementation "io.github.jho951.platform:platform-governance-starter"
+    implementation "io.github.jho951.platform:platform-governance-api"
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -50,10 +50,10 @@ public final class RedisConnection implements AutoCloseable {
     }
 
     private void writeArray(String... values) throws IOException {
-        out.write(('*' + values.length + "\r\n").getBytes(StandardCharsets.UTF_8));
+        out.write(("*" + values.length + "\r\n").getBytes(StandardCharsets.UTF_8));
         for (String value : values) {
             byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-            out.write(('$' + bytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
+            out.write(("$" + bytes.length + "\r\n").getBytes(StandardCharsets.UTF_8));
             out.write(bytes);
             out.write("\r\n".getBytes(StandardCharsets.UTF_8));
         }

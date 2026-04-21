@@ -40,6 +40,7 @@ public final class GatewayApplication {
         defaults.put("server.address", config.bindAddress().getHostString());
         defaults.put("server.port", String.valueOf(config.bindAddress().getPort()));
         defaults.put("spring.application.name", "gateway-service");
+        defaults.put("spring.profiles.active", runtimeEnvironment.profile());
         defaults.put("spring.main.web-application-type", "reactive");
         defaults.put("spring.cloud.gateway.server.webflux.forwarded.enabled", "true");
         defaults.put("management.endpoints.web.exposure.include", "health,info,metrics,prometheus");

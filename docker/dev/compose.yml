@@ -10,7 +10,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - ${GATEWAY_ENV_FILE:-../.env.dev}
+      - ${GATEWAY_ENV_FILE:-../../.env.dev}
     environment:
       APP_ENV: dev
       APP_ENV_FILE: /app/.env.dev

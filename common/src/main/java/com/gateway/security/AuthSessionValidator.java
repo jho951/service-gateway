@@ -3,6 +3,7 @@ package com.gateway.security;
 import com.gateway.auth.AuthResult;
 import com.gateway.auth.AuthServiceClient;
 import com.gateway.cache.LocalSessionCache;
+import com.gateway.cache.RedisSsoSessionStore;
 import com.gateway.cache.RedisSessionCache;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ public final class AuthSessionValidator {
     private final AuthServiceClient authServiceClient;
     private final LocalSessionCache localCache;
     private final RedisSessionCache redisCache;
+    private final RedisSsoSessionStore redisSsoSessionStore;
 
     /**
      * 생성자
@@ -36,7 +38,8 @@ public final class AuthSessionValidator {
             AuthTokenVerifier tokenVerifier,
             AuthServiceClient authServiceClient,
             LocalSessionCache localCache,
-            RedisSessionCache redisCache
+            RedisSessionCache redisCache,
+            RedisSsoSessionStore redisSsoSessionStore
     ) {
         this.authServiceUri = authServiceUri;
         this.jwtPrecheckPolicy = jwtPrecheckPolicy;
@@ -44,6 +47,7 @@ public final class AuthSessionValidator {
         this.authServiceClient = authServiceClient;
         this.localCache = localCache;
         this.redisCache = redisCache;
+        this.redisSsoSessionStore = redisSsoSessionStore;
     }
 
     public AuthVerificationResult verifyBearer(String authorizationHeader, String requestId, String correlationId) throws IOException, InterruptedException {
@@ -68,7 +72,15 @@ public final class AuthSessionValidator {
 
         AuthResult authResult = validateSession(authorizationHeader, null, requestId, correlationId);
         if (!authResult.isAuthenticated()) {
-            return AuthVerificationResult.failed(verificationResult);
+            AuthResult fallbackAuthResult = buildLocalAuthResult(authorizationHeader);
+            if (fallbackAuthResult == null || !fallbackAuthResult.isAuthenticated()) {
+                return AuthVerificationResult.failed(verificationResult);
+            }
+            cacheAuthResult(cacheKey, fallbackAuthResult);
+            return AuthVerificationResult.fromService(
+                    AuthTokenVerifier.Result.verified("TOKEN_VERIFIED_LOCAL_FALLBACK"),
+                    fallbackAuthResult
+            );
         }
 
         cacheAuthResult(cacheKey, authResult);
@@ -81,7 +93,20 @@ public final class AuthSessionValidator {
             return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("MISSING_SSO_SESSION_COOKIE"));
         }
         AuthResult authResult = validateSession(null, cookieHeader, requestId, correlationId);
-        if (!authResult.isAuthenticated()) return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("COOKIE_SESSION_UNAUTHORIZED"));
+        if (!authResult.isAuthenticated()) {
+            AuthResult redisSessionAuthResult = buildRedisSessionAuthResult(cookieHeader);
+            if (redisSessionAuthResult != null && redisSessionAuthResult.isAuthenticated()) {
+                return AuthVerificationResult.fromService(
+                        AuthTokenVerifier.Result.verified("COOKIE_SESSION_REDIS_FALLBACK"),
+                        redisSessionAuthResult
+                );
+            }
+            String accessToken = extractAccessTokenFromCookie(cookieHeader);
+            if (accessToken == null || accessToken.isBlank()) {
+                return AuthVerificationResult.failed(AuthTokenVerifier.Result.rejected("COOKIE_SESSION_UNAUTHORIZED"));
+            }
+            return verifyBearer("Bearer " + accessToken, requestId, correlationId);
+        }
         return AuthVerificationResult.fromService(AuthTokenVerifier.Result.skipped("COOKIE_SESSION_VALIDATED"), authResult);
     }
 
@@ -131,6 +156,68 @@ public final class AuthSessionValidator {
 
     private static boolean hasSessionCookie(String cookieHeader) {
         return cookieHeader != null && !cookieHeader.isBlank() && cookieHeader.contains("sso_session=");
+    }
+
+    private AuthResult buildLocalAuthResult(String authorizationHeader) {
+        AuthTokenVerifier.TokenClaims claims = tokenVerifier.parseClaims(authorizationHeader);
+        if (claims == null || claims.userId() == null || claims.userId().isBlank()) {
+            return null;
+        }
+        return new AuthResult(
+                200,
+                true,
+                claims.userId(),
+                claims.role(),
+                claims.status(),
+                "",
+                claims.email(),
+                claims.name(),
+                claims.avatarUrl()
+        );
+    }
+
+    private static String extractAccessTokenFromCookie(String cookieHeader) {
+        if (cookieHeader == null || cookieHeader.isBlank()) {
+            return null;
+        }
+        String[] parts = cookieHeader.split(";");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.startsWith("ACCESS_TOKEN=")) {
+                continue;
+            }
+            String value = trimmed.substring("ACCESS_TOKEN=".length()).trim();
+            return value.isEmpty() ? null : value;
+        }
+        return null;
+    }
+
+    private AuthResult buildRedisSessionAuthResult(String cookieHeader) throws IOException {
+        if (redisSsoSessionStore == null) {
+            return null;
+        }
+        String sessionId = extractCookieValue(cookieHeader, "sso_session");
+        if (sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        return redisSsoSessionStore.get(sessionId);
+    }
+
+    private static String extractCookieValue(String cookieHeader, String cookieName) {
+        if (cookieHeader == null || cookieHeader.isBlank()) {
+            return null;
+        }
+        String[] parts = cookieHeader.split(";");
+        String prefix = cookieName + "=";
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.startsWith(prefix)) {
+                continue;
+            }
+            String value = trimmed.substring(prefix.length()).trim();
+            return value.isEmpty() ? null : value;
+        }
+        return null;
     }
 
     private record CachedAuth(AuthResult authResult, String outcome) {
