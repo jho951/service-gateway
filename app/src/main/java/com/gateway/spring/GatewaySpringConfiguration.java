@@ -11,7 +11,11 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Configuration
@@ -54,6 +58,21 @@ public class GatewaySpringConfiguration {
                     .uri(route.targetBaseUri().toString()));
         }
         return routes.build();
+    }
+
+    @Bean
+    public CorsWebFilter gatewayCorsWebFilter(GatewayConfig config) {
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+        corsConfiguration.setAllowedOriginPatterns(config.allowedOrigins());
+        corsConfiguration.setAllowCredentials(true);
+        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        corsConfiguration.setAllowedHeaders(List.of("*"));
+        corsConfiguration.setExposedHeaders(List.of("X-Request-Id", "X-Correlation-Id"));
+        corsConfiguration.setMaxAge(600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", corsConfiguration);
+        return new CorsWebFilter(source);
     }
 
     private static String toSpringPathPattern(String pathPattern) {

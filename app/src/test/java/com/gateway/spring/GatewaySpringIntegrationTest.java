@@ -199,6 +199,43 @@ class GatewaySpringIntegrationTest {
     }
 
     @Test
+    void authMeCorsPreflightIsAllowedForBrowserOrigin() throws Exception {
+        AtomicInteger validateCalls = new AtomicInteger();
+        AtomicInteger meCalls = new AtomicInteger();
+
+        startUpstreams(
+                validateCalls,
+                "user-123",
+                new AtomicInteger(),
+                null,
+                null,
+                exchange -> {
+                    meCalls.incrementAndGet();
+                    writeJson(exchange, 200, "{\"userId\":\"user-123\",\"status\":\"A\"}");
+                },
+                null,
+                null
+        );
+        startGateway();
+
+        HttpResponse<String> response = sendGatewayOptions(
+                "/v1/auth/me?page=explain",
+                Map.of(
+                        "Origin", "http://127.0.0.1:3000",
+                        "Access-Control-Request-Method", "GET",
+                        "Access-Control-Request-Headers", "content-type"
+                )
+        );
+
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals("http://127.0.0.1:3000", response.headers().firstValue("Access-Control-Allow-Origin").orElse(null));
+        assertEquals("true", response.headers().firstValue("Access-Control-Allow-Credentials").orElse(null));
+        assertTrue(response.headers().firstValue("Access-Control-Allow-Headers").orElse("").toLowerCase().contains("content-type"));
+        assertEquals(0, validateCalls.get());
+        assertEquals(0, meCalls.get());
+    }
+
+    @Test
     void loginRouteIsRateLimitedByPlatformPolicy() throws Exception {
         startUpstreams(new AtomicInteger(), "user-123", new AtomicInteger(), null, null, null, null, null);
         startGateway(Map.of("GATEWAY_LOGIN_RATE_LIMIT_PER_MINUTE", "1"));
@@ -583,6 +620,20 @@ class GatewaySpringIntegrationTest {
                 .timeout(Duration.ofSeconds(3))
                 .POST(HttpRequest.BodyPublishers.ofString(body == null ? "" : body, StandardCharsets.UTF_8));
         for (Map.Entry<String, String> header : extraHeaders.entrySet()) {
+            requestBuilder.header(header.getKey(), header.getValue());
+        }
+        return HttpClient.newHttpClient().send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> sendGatewayOptions(
+            String path,
+            Map<String, String> headers
+    ) throws Exception {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create("http://127.0.0.1:" + gatewayPort() + path))
+                .timeout(Duration.ofSeconds(3))
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody());
+        for (Map.Entry<String, String> header : headers.entrySet()) {
             requestBuilder.header(header.getKey(), header.getValue());
         }
         return HttpClient.newHttpClient().send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
