@@ -46,7 +46,7 @@ public class GatewaySpringConfiguration {
                         if (route.stripPrefix() != null && !route.stripPrefix().isBlank()) {
                             filters.rewritePath(
                                     "^" + Pattern.quote(route.stripPrefix()) + "(?<remaining>/?.*)$",
-                                    "$\\{remaining}"
+                                    "${remaining}"
                             );
                         }
                         return filters;

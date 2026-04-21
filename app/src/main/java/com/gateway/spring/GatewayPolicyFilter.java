@@ -208,15 +208,14 @@ public final class GatewayPolicyFilter implements GlobalFilter, Ordered {
                 "security.downstream.headers"
         );
 
+        String upstreamPath = route.rewritePath(requestPath);
         ServerHttpRequest.Builder builder = exchange.getRequest().mutate();
+        builder.path(upstreamPath);
         builder.headers(headers -> {
             removeTrustedHeaders(headers);
             headers.remove("X-Forwarded-Prefix");
             if (!shouldForwardAuthorizationHeader(route)) {
                 headers.remove(HttpHeaders.AUTHORIZATION);
-            }
-            if (route.stripPrefix() != null && !route.stripPrefix().isBlank()) {
-                headers.set("X-Forwarded-Prefix", route.stripPrefix());
             }
             headers.set(TraceHeaders.REQUEST_ID, requestId);
             headers.set(TraceHeaders.CORRELATION_ID, correlationId);

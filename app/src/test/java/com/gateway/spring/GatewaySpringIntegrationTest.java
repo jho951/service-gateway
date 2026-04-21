@@ -190,8 +190,8 @@ class GatewaySpringIntegrationTest {
         startUpstreams(new AtomicInteger(), "user-123", new AtomicInteger(), null, null, null, null, null);
         startGateway(Map.of("GATEWAY_LOGIN_RATE_LIMIT_PER_MINUTE", "1"));
 
-        HttpResponse<String> first = sendGatewayRequest("/v1/auth/login", null, null, Map.of());
-        HttpResponse<String> second = sendGatewayRequest("/v1/auth/login", null, null, Map.of());
+        HttpResponse<String> first = sendGatewayPost("/v1/auth/login", "{}", Map.of("Content-Type", "application/json"));
+        HttpResponse<String> second = sendGatewayPost("/v1/auth/login", "{}", Map.of("Content-Type", "application/json"));
 
         assertEquals(200, first.statusCode());
         assertEquals(429, second.statusCode());
@@ -554,6 +554,21 @@ class GatewaySpringIntegrationTest {
         if (cookieHeader != null) {
             requestBuilder.header("Cookie", cookieHeader);
         }
+        for (Map.Entry<String, String> header : extraHeaders.entrySet()) {
+            requestBuilder.header(header.getKey(), header.getValue());
+        }
+        return HttpClient.newHttpClient().send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> sendGatewayPost(
+            String path,
+            String body,
+            Map<String, String> extraHeaders
+    ) throws Exception {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create("http://127.0.0.1:" + gatewayPort() + path))
+                .timeout(Duration.ofSeconds(3))
+                .POST(HttpRequest.BodyPublishers.ofString(body == null ? "" : body, StandardCharsets.UTF_8));
         for (Map.Entry<String, String> header : extraHeaders.entrySet()) {
             requestBuilder.header(header.getKey(), header.getValue());
         }
