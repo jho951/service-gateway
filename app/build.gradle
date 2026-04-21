@@ -16,7 +16,7 @@ dependencies {
     implementation "jakarta.servlet:jakarta.servlet-api"
     implementation "io.github.jho951.platform:platform-governance-starter"
     implementation "io.github.jho951.platform:platform-security-starter"
-    implementation "io.github.jho951.platform:platform-security-core:2.0.1"
+    implementation "io.github.jho951.platform:platform-security-core:2.0.3"
     implementation "io.github.jho951.platform:platform-security-web:2.0.3"
     implementation "io.github.jho951.platform:platform-security-governance-bridge:1.0.1"
 
