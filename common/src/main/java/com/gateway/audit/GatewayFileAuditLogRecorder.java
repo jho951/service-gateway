@@ -1,7 +1,6 @@
 package com.gateway.audit;
 
 import io.github.jho951.platform.governance.api.AuditEntry;
-import io.github.jho951.platform.governance.api.AuditLogRecorder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,7 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
 /** AuditEntry를 JSON lines 파일로 기록하는 governance 호환 recorder입니다. */
-public final class GatewayFileAuditLogRecorder implements AuditLogRecorder {
+public final class GatewayFileAuditLogRecorder implements GatewayAuditRecorder {
     private final Path filePath;
     private final String serviceName;
     private final String env;

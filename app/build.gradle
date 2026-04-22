@@ -7,8 +7,8 @@ dependencies {
     implementation project(':common')
 
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:2024.0.1")
-    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.1")
-    implementation platform("io.github.jho951.platform:platform-security-bom:2.0.3")
+    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.2")
+    implementation platform("io.github.jho951.platform:platform-security-bom:2.0.5")
 
     implementation "org.springframework.cloud:spring-cloud-starter-gateway"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
@@ -16,7 +16,9 @@ dependencies {
     implementation "jakarta.servlet:jakarta.servlet-api"
     implementation "io.github.jho951.platform:platform-governance-starter"
     implementation "io.github.jho951.platform:platform-security-starter"
-    implementation "io.github.jho951.platform:platform-security-governance-bridge:1.0.1"
+    implementation "io.github.jho951.platform:platform-security-core:2.0.5"
+    implementation "io.github.jho951.platform:platform-security-web:2.0.5"
+    implementation "io.github.jho951.platform:platform-security-governance-bridge:1.0.3"
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'

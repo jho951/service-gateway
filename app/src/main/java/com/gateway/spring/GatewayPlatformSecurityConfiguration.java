@@ -2,6 +2,7 @@ package com.gateway.spring;
 
 import com.gateway.audit.GatewayFileAuditLogRecorder;
 import com.gateway.audit.GatewayAuditService;
+import com.gateway.audit.GatewayAuditRecorder;
 import com.gateway.audit.GatewayOperationalAuditPort;
 import com.gateway.auth.AuthServiceClient;
 import com.gateway.auth.AuthzServiceClient;
@@ -32,11 +33,7 @@ import io.github.jho951.platform.security.policy.BoundaryIpPolicyProvider;
 import io.github.jho951.platform.security.policy.BoundaryRateLimitPolicyProvider;
 import io.github.jho951.platform.security.policy.ClientType;
 import io.github.jho951.platform.security.policy.ClientTypeResolver;
-import io.github.jho951.platform.security.policy.DefaultAuthenticationModeResolver;
-import io.github.jho951.platform.security.policy.DefaultClientTypeResolver;
-import io.github.jho951.platform.security.policy.DefaultPlatformPrincipalFactory;
 import io.github.jho951.platform.security.policy.PlatformPrincipalFactory;
-import io.github.jho951.platform.security.policy.PlatformSecurityProperties;
 import io.github.jho951.platform.security.policy.SecurityBoundary;
 import io.github.jho951.platform.security.policy.SecurityBoundaryResolver;
 import io.github.jho951.platform.security.policy.SecurityBoundaryType;
@@ -63,26 +60,12 @@ public class GatewayPlatformSecurityConfiguration {
     public static final String ATTR_USER_STATUS = "gateway.security.userStatus";
 
     @Bean
-    public PlatformSecurityProperties platformSecurityProperties() {
-        PlatformSecurityProperties properties = new PlatformSecurityProperties();
-        properties.setEnabled(true);
-        properties.getAuth().setEnabled(true);
-        properties.getAuth().setDefaultMode(AuthMode.HYBRID);
-        properties.getAuth().setAllowSessionForBrowser(true);
-        properties.getAuth().setAllowBearerForApi(true);
-        properties.getAuth().setInternalTokenEnabled(true);
-        properties.getAudit().setMode(SecurityAuditMode.ALL);
-        return properties;
-    }
-
-    @Bean
     public SecurityBoundaryResolver gatewaySecurityBoundaryResolver() {
         return request -> new SecurityBoundary(resolveBoundaryType(request), List.of(request.path()));
     }
 
     @Bean
     public ClientTypeResolver gatewayClientTypeResolver() {
-        DefaultClientTypeResolver fallback = new DefaultClientTypeResolver();
         return new ClientTypeResolver() {
             @Override
             public ClientType resolve(SecurityRequest request) {
@@ -99,14 +82,21 @@ public class GatewayPlatformSecurityConfiguration {
                         // fall through
                     }
                 }
-                return fallback.resolve(request, context, boundary);
+                if (boundary != null) {
+                    return switch (boundary.type()) {
+                        case INTERNAL -> ClientType.INTERNAL_SERVICE;
+                        case ADMIN -> ClientType.ADMIN_CONSOLE;
+                        case PROTECTED -> ClientType.BROWSER;
+                        default -> ClientType.EXTERNAL_API;
+                    };
+                }
+                return ClientType.EXTERNAL_API;
             }
         };
     }
 
     @Bean
-    public AuthenticationModeResolver gatewayAuthenticationModeResolver(PlatformSecurityProperties properties) {
-        DefaultAuthenticationModeResolver fallback = new DefaultAuthenticationModeResolver(properties.getAuth());
+    public AuthenticationModeResolver gatewayAuthenticationModeResolver() {
         return new AuthenticationModeResolver() {
             @Override
             public AuthMode resolve(SecurityRequest request, SecurityContext context) {
@@ -123,14 +113,26 @@ public class GatewayPlatformSecurityConfiguration {
                         // fall through
                     }
                 }
-                return fallback.resolve(request, context, boundary, clientType);
+                if (boundary != null && boundary.type() == SecurityBoundaryType.PUBLIC) {
+                    return AuthMode.NONE;
+                }
+                if (context != null && context.authenticated()) {
+                    return AuthMode.HYBRID;
+                }
+                return AuthMode.NONE;
             }
         };
     }
 
     @Bean
     public PlatformPrincipalFactory platformPrincipalFactory() {
-        return new DefaultPlatformPrincipalFactory();
+        return context -> {
+            if (context == null || !context.authenticated()) {
+                return "";
+            }
+            String principal = context.principal();
+            return principal == null ? "" : principal;
+        };
     }
 
     @Bean
@@ -257,8 +259,13 @@ public class GatewayPlatformSecurityConfiguration {
         return new SecurityIngressAdapter(securityPolicyService, boundaryResolver);
     }
 
-    @Bean("gatewayPlatformExternalAuditLogRecorder")
-    public AuditLogRecorder gatewayPlatformExternalAuditLogRecorder(GatewayConfig config) {
+    @Bean
+    public GatewaySecurityEvaluator gatewaySecurityEvaluator(SecurityIngressAdapter gatewaySecurityIngressAdapter) {
+        return new PlatformGatewaySecurityEvaluator(gatewaySecurityIngressAdapter);
+    }
+
+    @Bean("gatewayPlatformExternalAuditRecorder")
+    public GatewayAuditRecorder gatewayPlatformExternalAuditRecorder(GatewayConfig config) {
         return new GatewayFileAuditLogRecorder(
                 Path.of(config.auditLogPath()),
                 config.auditLogServiceName(),
@@ -267,23 +274,31 @@ public class GatewayPlatformSecurityConfiguration {
     }
 
     @Bean
-    public SecurityAuditPublisher gatewaySecurityAuditPublisher(
-            PlatformSecurityProperties properties,
-            @Qualifier("gatewayPlatformExternalAuditLogRecorder") AuditLogRecorder externalRecorder,
+    public GatewayAuditRecorder gatewayAuditRecorder(
+            @Qualifier("gatewayPlatformExternalAuditRecorder") GatewayAuditRecorder externalRecorder,
             @Qualifier("platformGovernanceAuditLogRecorder") ObjectProvider<AuditLogRecorder> governanceRecorderProvider
     ) {
-        AuditLogRecorder recorder = governanceRecorderProvider.getIfAvailable(() -> externalRecorder);
-        return new GovernanceSecurityAuditPublisher(recorder, properties.getAudit().getMode());
+        AuditLogRecorder governanceRecorder = governanceRecorderProvider.getIfAvailable();
+        if (governanceRecorder != null) {
+            return new PlatformGovernanceAuditRecorderAdapter(governanceRecorder);
+        }
+        return externalRecorder;
+    }
+
+    @Bean
+    public SecurityAuditPublisher gatewaySecurityAuditPublisher(
+            GatewayAuditRecorder gatewayAuditRecorder
+    ) {
+        AuditLogRecorder recorder = new PlatformSecurityAuditLogRecorderAdapter(gatewayAuditRecorder);
+        return new GovernanceSecurityAuditPublisher(recorder, SecurityAuditMode.ALL);
     }
 
     @Bean
     public GatewayOperationalAuditPort gatewayOperationalAuditPort(
             GatewayConfig config,
-            @Qualifier("gatewayPlatformExternalAuditLogRecorder") AuditLogRecorder externalRecorder,
-            @Qualifier("platformGovernanceAuditLogRecorder") ObjectProvider<AuditLogRecorder> governanceRecorderProvider
+            GatewayAuditRecorder gatewayAuditRecorder
     ) {
-        AuditLogRecorder recorder = governanceRecorderProvider.getIfAvailable(() -> externalRecorder);
-        return new GatewayAuditService(config.auditLogEnabled(), recorder);
+        return new GatewayAuditService(config.auditLogEnabled(), gatewayAuditRecorder);
     }
 
     @Bean

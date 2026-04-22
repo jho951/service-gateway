@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.1")
+    implementation platform("io.github.jho951.platform:platform-governance-bom:2.0.2")
     implementation "io.github.jho951.platform:platform-governance-api"
 
     testImplementation platform('org.junit:junit-bom:5.11.4')

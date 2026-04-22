@@ -238,7 +238,9 @@ public final class GatewayPolicyFilter implements GlobalFilter, Ordered {
                             + " userId=" + resolvedUserId);
                 }
             }
-            if (upstreamAuthorizationHeader != null && !upstreamAuthorizationHeader.isBlank()) {
+            if (shouldForwardAuthorizationHeader(route)
+                    && upstreamAuthorizationHeader != null
+                    && !upstreamAuthorizationHeader.isBlank()) {
                 headers.set(HttpHeaders.AUTHORIZATION, upstreamAuthorizationHeader);
             }
         });

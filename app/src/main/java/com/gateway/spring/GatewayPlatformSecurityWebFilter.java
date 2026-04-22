@@ -24,7 +24,6 @@ import io.github.jho951.platform.security.policy.SecurityBoundaryType;
 import io.github.jho951.platform.security.web.ReactiveSecurityFailureResponseWriter;
 import io.github.jho951.platform.security.web.SecurityDownstreamIdentityPropagator;
 import io.github.jho951.platform.security.web.SecurityFailureResponse;
-import io.github.jho951.platform.security.web.SecurityIngressAdapter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -47,28 +46,29 @@ import java.util.Map;
 public final class GatewayPlatformSecurityWebFilter implements WebFilter, Ordered {
     private final RouteResolver routeResolver;
     private final AuthSessionValidator authSessionValidator;
-    private final SecurityIngressAdapter securityIngressAdapter;
+    private final GatewaySecurityEvaluator securityEvaluator;
     private final GatewaySecurityAuditPort gatewaySecurityAuditPort;
     private final ReactiveSecurityFailureResponseWriter failureResponseWriter;
-    private final SecurityDownstreamIdentityPropagator downstreamIdentityPropagator;
+    private final GatewayDownstreamIdentityProjector downstreamIdentityProjector;
     private final GatewayMetrics metrics;
     private final GatewayConfig config;
 
     public GatewayPlatformSecurityWebFilter(
             RouteResolver routeResolver,
             AuthSessionValidator gatewayAuthSessionValidator,
-            SecurityIngressAdapter gatewaySecurityIngressAdapter,
+            GatewaySecurityEvaluator gatewaySecurityEvaluator,
             GatewaySecurityAuditPort gatewaySecurityAuditPort,
             ReactiveSecurityFailureResponseWriter gatewaySecurityFailureResponseWriter,
+            GatewayDownstreamIdentityProjector gatewayDownstreamIdentityProjector,
             GatewayMetrics metrics,
             GatewayConfig config
     ) {
         this.routeResolver = routeResolver;
         this.authSessionValidator = gatewayAuthSessionValidator;
-        this.securityIngressAdapter = gatewaySecurityIngressAdapter;
+        this.securityEvaluator = gatewaySecurityEvaluator;
         this.gatewaySecurityAuditPort = gatewaySecurityAuditPort;
         this.failureResponseWriter = gatewaySecurityFailureResponseWriter;
-        this.downstreamIdentityPropagator = new SecurityDownstreamIdentityPropagator();
+        this.downstreamIdentityProjector = gatewayDownstreamIdentityProjector;
         this.metrics = metrics;
         this.config = config;
     }
@@ -107,7 +107,7 @@ public final class GatewayPlatformSecurityWebFilter implements WebFilter, Ordere
                     }
                     exchange.getAttributes().put(
                             SecurityDownstreamIdentityPropagator.ATTR_DOWNSTREAM_HEADERS,
-                            downstreamIdentityPropagator.asAttributes(decision.evaluationResult())
+                            downstreamIdentityProjector.asAttributes(decision.evaluationResult())
                     );
                     exchange.getAttributes().put(GatewaySecurityExchangeAttributes.AUTH_OUTCOME, decision.authOutcome());
                     if (decision.requestChannel() != null) {
@@ -150,7 +150,7 @@ public final class GatewayPlatformSecurityWebFilter implements WebFilter, Ordere
         }
 
         SecurityContext securityContext = buildSecurityContext(routeType, authAttempt);
-        SecurityRequest securityRequest = securityIngressAdapter.withResolvedBoundary(
+        SecurityRequest securityRequest = securityEvaluator.withResolvedBoundary(
                 buildSecurityRequest(
                         routeType,
                         requestMethod,
@@ -163,7 +163,7 @@ public final class GatewayPlatformSecurityWebFilter implements WebFilter, Ordere
                         securityContext
                 )
         );
-        SecurityEvaluationResult evaluationResult = securityIngressAdapter.evaluateResult(securityRequest, securityContext);
+        SecurityEvaluationResult evaluationResult = securityEvaluator.evaluateResult(securityRequest, securityContext);
         gatewaySecurityAuditPort.publish(evaluationResult);
         SecurityFailureResponse failureResponse = SecurityFailureResponse.from(evaluationResult.verdict());
 

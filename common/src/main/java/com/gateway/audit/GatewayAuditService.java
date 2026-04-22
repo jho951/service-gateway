@@ -1,7 +1,6 @@
 package com.gateway.audit;
 
 import io.github.jho951.platform.governance.api.AuditEntry;
-import io.github.jho951.platform.governance.api.AuditLogRecorder;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -10,7 +9,7 @@ import java.util.Map;
 /** Gateway 요청/오류 감사 이벤트를 platform-governance 감사 API로 기록합니다. */
 public final class GatewayAuditService implements GatewayOperationalAuditPort {
     private final boolean enabled;
-    private final AuditLogRecorder recorder;
+    private final GatewayAuditRecorder recorder;
 
     private static String resolveEventType(String method) {
         if (method == null) {
@@ -29,7 +28,7 @@ public final class GatewayAuditService implements GatewayOperationalAuditPort {
         return value == null ? "" : value;
     }
 
-    public GatewayAuditService(boolean enabled, AuditLogRecorder recorder) {
+    public GatewayAuditService(boolean enabled, GatewayAuditRecorder recorder) {
         this.enabled = enabled;
         this.recorder = enabled ? recorder : null;
     }

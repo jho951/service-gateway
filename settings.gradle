@@ -7,8 +7,15 @@ dependencyResolutionManagement {
             maven {
                 url = uri("https://maven.pkg.github.com/jho951/${repoName}")
                 def githubPackagesUsername = providers.environmentVariable('GITHUB_ACTOR')
+                        .orElse(providers.gradleProperty('githubPackagesUsername'))
+                        .orElse(providers.gradleProperty('githubUsername'))
                         .orElse('jho951')
                 def githubPackagesToken = providers.environmentVariable('GH_TOKEN')
+                        .orElse(providers.environmentVariable('GITHUB_TOKEN'))
+                        .orElse(providers.gradleProperty('githubPackagesToken'))
+                        .orElse(providers.gradleProperty('githubToken'))
+                        .orElse(providers.gradleProperty('ghToken'))
+                        .orElse(providers.gradleProperty('gh_token'))
                 if (githubPackagesUsername.present && githubPackagesToken.present) {
                     credentials {
                         username = githubPackagesUsername.get()
