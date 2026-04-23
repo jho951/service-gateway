@@ -10,6 +10,32 @@
 - 비브라우저 요청이면 `Authorization: Bearer <token>`이 있는지 확인합니다.
 - auth-service의 `/auth/internal/session/validate`가 `authenticated: true`와 `userId`를 반환하는지 확인합니다.
 
+## 보호 서비스가 `401 invalid_token` 또는 `iss claim is not valid`를 반환함
+
+증상:
+
+- `POST /v1/documents`, `GET /v1/users/me` 같은 보호 경로가 downstream에서 `401`을 반환합니다.
+- 응답 헤더에 `www-authenticate: Bearer error="invalid_token"`이 보입니다.
+- 메시지에 `iss claim is not valid`, `aud claim is not valid`, `signature` 같은 JWT 검증 실패가 보입니다.
+
+원인:
+
+- Gateway는 보호 서비스로 `iss=api-gateway`, `aud=internal-services` 내부 JWT를 전달합니다.
+- downstream 서비스가 여전히 `auth-service`, `user-service`, `editor-service` 같은 이전 issuer/audience를 기대하면 즉시 거부합니다.
+- shared secret이 다르면 issuer/audience를 맞춰도 같은 증상이 납니다.
+
+확인할 것:
+
+- Gateway의 `GATEWAY_INTERNAL_JWT_SHARED_SECRET`, `GATEWAY_INTERNAL_JWT_ISSUER`, `GATEWAY_INTERNAL_JWT_AUDIENCE`
+- downstream의 `PLATFORM_SECURITY_JWT_SECRET`, `PLATFORM_SECURITY_JWT_ISSUER`, `PLATFORM_SECURITY_JWT_AUDIENCE`
+- `user-service`면 `USER_SERVICE_INTERNAL_JWT_*`, `editor-service`면 platform security JWT 설정이 같은 계약을 보는지 확인합니다.
+
+해결:
+
+- 보호 서비스는 모두 `issuer=api-gateway`, `audience=internal-services` 기준으로 맞춥니다.
+- shared secret은 Gateway와 downstream이 같은 값을 사용합니다.
+- browser cookie, auth-service access token, Gateway 내부 JWT를 같은 층의 토큰으로 취급하지 않습니다.
+
 ## `/v1/users/me`가 403을 반환함
 
 Gateway 인증은 통과했지만 user-service가 사용자를 거부했을 수 있습니다.
@@ -26,6 +52,7 @@ Gateway 인증은 통과했지만 user-service가 사용자를 거부했을 수 
 - `AUTHZ_INTERNAL_JWT_SECRET`, `AUTHZ_INTERNAL_JWT_ISSUER`, `AUTHZ_INTERNAL_JWT_AUDIENCE`가 authz-service 운영 설정과 같은지 확인합니다.
 - authz-service가 `X-User-Id`, `X-Session-Id`, `X-Original-Method`, `X-Original-Path`를 받는지 확인합니다.
 - authz-service가 `200`이 아닌 응답을 반환하면 Gateway는 fail-closed로 거부합니다.
+- `authz-service`는 일반 보호 서비스용 `aud=internal-services` 토큰이 아니라, `aud=authz-service` caller proof 토큰을 검증한다는 점을 확인합니다.
 
 ## OAuth redirect가 이상함
 
