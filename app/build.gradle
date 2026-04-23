@@ -7,9 +7,9 @@ dependencies {
     implementation project(':common')
 
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:2024.0.1")
-    implementation platform("io.github.jho951.platform:platform-runtime-bom:3.0.0")
-    implementation platform("io.github.jho951.platform:platform-governance-bom:3.0.0")
-    implementation platform("io.github.jho951.platform:platform-security-bom:3.0.0")
+    implementation platform("io.github.jho951.platform:platform-runtime-bom:3.0.1")
+    implementation platform("io.github.jho951.platform:platform-governance-bom:3.0.1")
+    implementation platform("io.github.jho951.platform:platform-security-bom:3.0.1")
 
     implementation "org.springframework.cloud:spring-cloud-starter-gateway"
     implementation "org.springframework.boot:spring-boot-starter-actuator"

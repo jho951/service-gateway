@@ -74,13 +74,13 @@ GatewayApplication
 사용하는 플랫폼 의존성은 다음과 같습니다.
 
 ```gradle
-implementation platform("io.github.jho951.platform:platform-runtime-bom:3.0.0")
-implementation platform("io.github.jho951.platform:platform-governance-bom:3.0.0")
-implementation platform("io.github.jho951.platform:platform-security-bom:3.0.0")
+implementation platform("io.github.jho951.platform:platform-runtime-bom:3.0.1")
+implementation platform("io.github.jho951.platform:platform-governance-bom:3.0.1")
+implementation platform("io.github.jho951.platform:platform-security-bom:3.0.1")
 implementation "io.github.jho951.platform:platform-governance-starter"
 implementation "io.github.jho951.platform:platform-security-starter"
 implementation "io.github.jho951.platform:platform-security-hybrid-web-adapter"
-implementation "io.github.jho951.platform:platform-security-governance-bridge:3.0.0"
+implementation "io.github.jho951.platform:platform-security-governance-bridge:3.0.1"
 ```
 
 현재 상태는 `Hybrid Embedded Gateway Mode` 입니다.
