@@ -1,5 +1,7 @@
 package com.gateway.spring;
 
+import io.github.jho951.platform.security.ratelimit.DefaultPlatformRateLimitAdapter;
+import io.github.jho951.platform.security.ratelimit.PlatformRateLimitPort;
 import io.github.jho951.ratelimiter.core.RateLimitDecision;
 import io.github.jho951.ratelimiter.core.RateLimitKey;
 import io.github.jho951.ratelimiter.core.RateLimitPlan;
@@ -17,12 +19,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 public class GatewayPlatformOperationalConfiguration {
 
     @Bean
-    public RateLimiter platformSecurityRateLimiter(
+    public PlatformRateLimitPort platformSecurityRateLimiter(
             StringRedisTemplate redisTemplate,
             @Value("${PLATFORM_SECURITY_RATE_LIMIT_REDIS_PREFIX:platform-security:rate-limit:gateway-service:}")
             String keyPrefix
     ) {
-        return new RedisFixedWindowRateLimiter(redisTemplate, keyPrefix, Clock.systemUTC());
+        return new DefaultPlatformRateLimitAdapter(
+                new RedisFixedWindowRateLimiter(redisTemplate, keyPrefix, Clock.systemUTC())
+        );
     }
 
     private static final class RedisFixedWindowRateLimiter implements RateLimiter {
