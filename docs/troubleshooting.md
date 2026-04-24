@@ -176,8 +176,9 @@ gateway-service는 두 방식을 모두 검토했습니다. 구현 이력과 대
 
 현재 운영 기본값:
 
-- 현재 Free Tier 계정에서는 `단일 EC2 + docker compose`를 실제 배포 기본값으로 둡니다.
+- 현재는 `m7i-flex.large` 단일 EC2 + docker compose를 실제 배포 기본값으로 둡니다.
 - 이때 gateway-service는 외부 공개 진입점 역할만 담당하고, 다른 서비스는 같은 host 내부 compose network로 호출합니다.
-- 비용 제약이 해제되면 `ECS/Fargate + public ALB + CodeDeploy blue/green`으로 승격합니다.
+- monitoring-service도 같은 host에 기본 포함으로 운영합니다.
+- 무중단이 필요해지면 `ECS/Fargate + public ALB + CodeDeploy blue/green`으로 승격합니다.
 - `redis-service`, `monitoring-service`처럼 host 운영이 자연스러운 서비스만 EC2를 유지합니다.
 - `docker/prod/compose.yml`은 로컬/임시 검증 reference로 보되, 표준 운영 배포 방식으로 취급하지 않습니다.
