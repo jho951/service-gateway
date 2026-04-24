@@ -56,7 +56,7 @@ env:
   COMPOSE_CONFIG_COMMAND: |
     touch "$RUNNER_TEMP/gateway-empty.env"
     SERVICE_SHARED_NETWORK=ci-service-shared GATEWAY_ENV_FILE="$RUNNER_TEMP/gateway-empty.env" docker compose -f docker/compose.yml -f docker/dev/compose.yml config >/tmp/gateway-dev.yml
-    SERVICE_SHARED_NETWORK=ci-service-shared GATEWAY_ENV_FILE="$RUNNER_TEMP/gateway-empty.env" GATEWAY_IMAGE=ghcr.io/example/gateway-service:test GATEWAY_INTERNAL_REQUEST_SECRET=ci-secret AUTH_SERVICE_INTERNAL_REQUEST_SECRET=ci-auth-secret AUTH_SERVICE_URL=http://auth-service:8081 USER_SERVICE_URL=http://user-service:8082 EDITOR_SERVICE_URL=http://editor-service:8083 AUTHZ_ADMIN_VERIFY_URL=http://authz-service:8084/permissions/internal/admin/verify AUTHZ_INTERNAL_JWT_SECRET=ci-authz-jwt-secret REDIS_HOST=central-redis docker compose -f docker/compose.yml -f docker/prod/compose.yml config >/tmp/gateway-prod.yml
+    SERVICE_SHARED_NETWORK=ci-service-shared GATEWAY_ENV_FILE="$RUNNER_TEMP/gateway-empty.env" GATEWAY_IMAGE=ghcr.io/example/gateway-service:test GATEWAY_INTERNAL_REQUEST_SECRET=ci-secret GATEWAY_INTERNAL_JWT_SHARED_SECRET=ci-gateway-internal-jwt-secret AUTH_SERVICE_INTERNAL_REQUEST_SECRET=ci-auth-secret AUTH_SERVICE_URL=http://auth-service:8081 USER_SERVICE_URL=http://user-service:8082 EDITOR_SERVICE_URL=http://editor-service:8083 AUTHZ_ADMIN_VERIFY_URL=http://authz-service:8084/permissions/internal/admin/verify AUTHZ_INTERNAL_JWT_SECRET=ci-authz-jwt-secret REDIS_HOST=central-redis docker compose -f docker/compose.yml -f docker/prod/compose.yml config >/tmp/gateway-prod.yml
   GITHUB_ACTOR: ${{ github.actor }}
   GH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GH_TOKEN || secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN || github.token }}
 
