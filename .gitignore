@@ -20,6 +20,7 @@ common/build/
 # secret
 .env*
 !.env.example
+!deploy/ec2/.env.production.example
 .env.dev
 .env.local
 .env.prod
