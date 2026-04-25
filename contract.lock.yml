@@ -1,7 +1,7 @@
 contract:
   repo: https://github.com/jho951/service-contract
   ref: main
-  commit: 2d6aaed6ca860308a3b732ebad539d6591127480
+  commit: 9fd9a6dd2d6487740fcddd6454407819cd77eca0
 
 service:
   name: gateway-service
