@@ -1,7 +1,5 @@
 package com.gateway.spring;
 
-import com.auditlog.api.AuditEvent;
-import com.auditlog.api.AuditSink;
 import com.gateway.audit.GatewayAuditRecorder;
 import com.gateway.audit.GatewayAuditService;
 import com.gateway.audit.GatewayFileAuditLogRecorder;
@@ -20,6 +18,7 @@ import com.gateway.security.AuthTokenVerifier;
 import com.gateway.security.InternalJwtIssuer;
 import com.gateway.security.JwtPrecheckPolicy;
 import io.github.jho951.platform.governance.api.AuditEntry;
+import io.github.jho951.platform.governance.api.GovernanceAuditSink;
 import io.github.jho951.platform.security.api.PlatformSecurityHybridWebAdapterMarker;
 import io.github.jho951.platform.security.api.SecurityContext;
 import io.github.jho951.platform.security.api.SecurityEvaluationService;
@@ -287,10 +286,10 @@ public class GatewayPlatformSecurityConfiguration {
     }
 
     @Bean
-    public AuditSink gatewayGovernanceAuditSink(
+    public GovernanceAuditSink gatewayGovernanceAuditSink(
             @Qualifier("gatewayPlatformExternalAuditRecorder") GatewayAuditRecorder externalRecorder
     ) {
-        return event -> externalRecorder.record(toGatewayAuditEntry(event));
+        return externalRecorder::record;
     }
 
     @Bean
@@ -406,34 +405,6 @@ public class GatewayPlatformSecurityConfiguration {
         );
     }
 
-    private static AuditEntry toGatewayAuditEntry(AuditEvent event) {
-        Map<String, String> attributes = new LinkedHashMap<>();
-        attributes.put("eventId", safe(event.getEventId()));
-        attributes.put("actorId", safe(event.getActorId()));
-        attributes.put("actorType", event.getActorType().name());
-        attributes.put("actorName", safe(event.getActorName()));
-        attributes.put("eventType", event.getEventType().name());
-        attributes.put("action", safe(event.getAction()));
-        attributes.put("resourceType", safe(event.getResourceType()));
-        attributes.put("resourceId", safe(event.getResourceId()));
-        attributes.put("result", event.getResult().name());
-        attributes.put("reason", safe(event.getReason()));
-        attributes.put("traceId", safe(event.getTraceId()));
-        attributes.put("requestId", safe(event.getRequestId()));
-        attributes.put("clientIp", safe(event.getClientIp()));
-        attributes.put("userAgent", safe(event.getUserAgent()));
-        event.getDetails().forEach((key, value) -> {
-            if (key != null && value != null) {
-                attributes.put("detail." + key, String.valueOf(value));
-            }
-        });
-        return new AuditEntry(
-                "gateway-platform",
-                safe(event.getAction()),
-                attributes,
-                event.getOccurredAt()
-        );
-    }
 
     private static String safe(String value) {
         return value == null ? "" : value;

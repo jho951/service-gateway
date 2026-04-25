@@ -7,19 +7,17 @@ dependencies {
     implementation project(':common')
 
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:2024.0.1")
-    implementation platform("io.github.jho951.platform:platform-runtime-bom:3.0.1")
-    implementation platform("io.github.jho951.platform:platform-governance-bom:3.0.1")
-    implementation platform("io.github.jho951.platform:platform-security-bom:3.0.1")
+    implementation platform("io.github.jho951.platform:platform-runtime-bom:4.0.0")
+    implementation platform("io.github.jho951.platform:platform-governance-bom:4.0.0")
+    implementation platform("io.github.jho951.platform:platform-security-bom:4.0.0")
 
     implementation "org.springframework.cloud:spring-cloud-starter-gateway"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     implementation "org.springframework.boot:spring-boot-starter-data-redis"
     runtimeOnly "io.micrometer:micrometer-registry-prometheus"
     implementation "jakarta.servlet:jakarta.servlet-api"
-    implementation "io.github.jho951:audit-log-api"
     implementation "io.github.jho951.platform:platform-governance-starter"
     implementation "io.github.jho951.platform:platform-security-starter"
-    implementation "io.github.jho951.platform:platform-security-adapter-ratelimiter"
     implementation "io.github.jho951.platform:platform-security-hybrid-web-adapter"
     implementation "io.github.jho951.platform:platform-security-governance-bridge"
 
